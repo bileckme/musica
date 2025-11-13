@@ -1,0 +1,252 @@
+<!-- revision.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Musica</title>
+<link rel="shortcut icon" href="favicon.png" type="image/x-icon" />
+<style>
+  @font-face {
+    font-family: "Bravura";
+    src: url("assets/fonts/Bravura/otf/Bravura.otf") format("opentype");
+    font-display: swap;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #000;
+    height: 100%;
+    overflow: hidden;
+    color: #fff;
+    font-family: Arial, sans-serif;
+  }
+
+  iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 88%;
+    border: none;
+    background: #111;
+    z-index: 1;
+  }
+
+  canvas {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 12%; /* or 25% for more visible keyboard */
+    background: #111; /* slightly lighter than black for contrast */
+    z-index: 2;
+    cursor: pointer;
+    border-top: 2px solid #333;
+  }
+
+  #overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.5rem;
+    font-weight: bold;
+    inset: 0;
+    background: radial-gradient(circle at center, #222 0%, #000 80%);
+    flex-direction: column;
+    color: #fff;
+    font-family: 'Segoe UI', sans-serif;
+    z-index: 9999;
+    transition: opacity 0.6s ease-out;
+  }
+</style>
+</head>
+
+<body>
+
+<!-- Splash/Loading Overlay -->
+<div id="overlay">
+  <p><img src="assets/images/logo.png" style="width: 192px; height: 192px;" alt="logo"/></p>
+</div>
+
+<iframe id="previewFrame" src="previewer.html"></iframe>
+<canvas id="pianoCanvas"></canvas>
+<div id="placeholder"></div>
+
+<!-- Load WebAudioFont Engine -->
+<script src="assets/js/webaudiofont/WebAudioFontPlayer.js"></script>
+<script src="assets/js/webaudiofont/0090_JCLive_sf2_file.js"></script>
+
+<!-- Load Soundfont.js for Real Piano -->
+<script src="https://unpkg.com/soundfont-player@0.7.0/dist/soundfont-player.min.js"></script>
+
+<!-- Load Real Piano and Main Piano Logic -->
+<script src="assets/js/fullscreen.js"></script>
+<script src="assets/js/real-piano-local.js"></script>
+<script src="assets/js/ui/piano-ui.js"></script>
+<script src="assets/js/piano.js"></script>
+
+<script>
+  async function initPiano() {
+    console.log("🎹 Initializing Real Piano...");
+    try {
+      await RealPiano.init(); // make sure your real-piano.js exposes RealPiano.init()
+      console.log("✅ Real Piano initialized successfully.");
+    } catch (err) {
+      console.error("Failed to initialize Real Piano:", err);
+    }
+  }
+
+  window.addEventListener("load", initPiano);
+</script>
+<script>
+(async function(){
+  const canvas = document.getElementById('pianoCanvas');
+  const ctx = canvas.getContext('2d');
+  const notes = [..."A0,A#0,B0,C1,C#1,D1,D#1,E1,F1,F#1,G1,G#1,".repeat(8)].join("").split(",").filter(Boolean);
+  let keyMap = {};
+
+  function resizeCanvas() {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = canvas.clientWidth * dpr;
+    canvas.height = canvas.clientHeight * dpr;
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.scale(dpr,dpr);
+    drawKeyboard();
+  }
+
+  function drawKeyboard() {
+    ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);
+    const whiteNotes = notes.filter(n=>!n.includes('#'));
+    const blackNotes = notes.filter(n=>n.includes('#'));
+    const whiteW = canvas.clientWidth / whiteNotes.length;
+    const blackW = whiteW*0.6;
+    const whiteH = canvas.clientHeight;
+    const blackH = whiteH*0.65;
+    let x=0;
+    keyMap={};
+
+    for(let n of notes){
+      if(!n.includes('#')){
+        ctx.fillStyle='white';
+        ctx.fillRect(x,0,whiteW,whiteH);
+        ctx.strokeStyle='#000';
+        ctx.strokeRect(x,0,whiteW,whiteH);
+        keyMap[n]={x,width:whiteW,height:whiteH,isBlack:false};
+        x+=whiteW;
+      }
+    }
+
+    x=0;
+    for(let n of notes){
+      if(n.includes('#')){
+        const kx = x-whiteW*0.3;
+        ctx.fillStyle='black';
+        ctx.fillRect(kx,0,blackW,blackH);
+        keyMap[n]={x:kx,width:blackW,height:blackH,isBlack:true};
+      }else x+=whiteW;
+    }
+  }
+
+  function flashKey(note){
+    const k = keyMap[note];
+    if(!k) return;
+    ctx.fillStyle = k.isBlack ? '#444' : '#88f';
+    ctx.fillRect(k.x,0,k.width,k.height);
+    setTimeout(drawKeyboard,120);
+  }
+
+  function playNoteFromUI(note) {
+    if (window.RealPianoLocal && RealPianoLocal.isReady()) {
+        RealPianoLocal.playNote(note, 0.88, 1.5);
+        flashKey(note);
+    } else {
+        console.warn('Piano not ready yet:', note);
+    }
+    }
+
+  function handlePress(e, down){
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    for(let n of notes.filter(n=>n.includes('#'))){
+      const k = keyMap[n];
+      if(mx>=k.x && mx<=k.x+k.width && my>=0 && my<=k.height){
+        down && playNoteFromUI(n);
+        return;
+      }
+    }
+    for(let n of notes.filter(n=>!n.includes('#'))){
+      const k = keyMap[n];
+      if(mx>=k.x && mx<=k.x+k.width){
+        down && playNoteFromUI(n);
+        return;
+      }
+    }
+  }
+
+  canvas.addEventListener('mousedown', e=>handlePress(e,true));
+  canvas.addEventListener('mouseup', e=>handlePress(e,false));
+  canvas.addEventListener('touchstart', e=>{handlePress(e.touches[0],true); e.preventDefault();});
+  canvas.addEventListener('touchend', e=>{handlePress(e.changedTouches[0],false); e.preventDefault();});
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+})();
+</script>
+
+
+<script>
+  // Force fullscreen
+  async function enterFullscreen() {
+    const elem = document.documentElement;
+    if (elem.requestFullscreen) await elem.requestFullscreen();
+    else if (elem.webkitRequestFullscreen) await elem.webkitRequestFullscreen();
+    else if (elem.msRequestFullscreen) await elem.msRequestFullscreen();
+  }
+
+  // Smoothly hide overlay
+  function hideOverlay() {
+    const overlay = document.getElementById('overlay');
+    if (!overlay) return;
+    overlay.style.opacity = '0';
+    setTimeout(() => overlay.style.display = 'none', 600); // match CSS transition
+  }
+
+  // Wait until everything is ready
+  async function waitForEverything() {
+    // 1. Wait for DOM + images
+    await new Promise(resolve => {
+      if (document.readyState === 'complete') resolve();
+      else window.addEventListener('load', resolve);
+    });
+
+    // 2. Enter fullscreen
+    await enterFullscreen().catch(() => console.warn('Fullscreen request denied'));
+
+    // 3. Initialize piano
+    if (window.RealPianoLocal && RealPianoLocal.init) {
+      try {
+        await RealPianoLocal.init();
+        console.log('✅ RealPianoLocal initialized.');
+      } catch (err) {
+        console.error('Failed to initialize RealPianoLocal:', err);
+      }
+    }
+
+    // 4. Ensure canvas renders at least one frame
+    const canvas = document.getElementById('pianoCanvas');
+    if (canvas && canvas.getContext) await new Promise(r => requestAnimationFrame(r));
+
+    // 5. Hide overlay
+    hideOverlay();
+  }
+
+  waitForEverything();
+</script>
+
+
+</body>
+</html>

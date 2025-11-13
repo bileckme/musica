@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Musica — Prototype (Real Piano)</title>
+<style>
+  :root { --bg:#0b0b0b; --panel:#0f0f0f; --muted:#999; --accent:#00aaff; }
+  html,body{height:100%;margin:0;background:var(--bg);color:#fff;font-family:Inter,Arial;}
+  .app{display:flex;flex-direction:column;gap:12px;padding:12px;height:100%}
+  .top{display:flex;gap:12px}
+  .controls{display:flex;gap:8px;align-items:center}
+  button, input, select {padding:8px 10px;border-radius:8px;border:1px solid #222;background:#111;color:#fff}
+  #keyboardWrap{background:var(--panel);border-radius:8px;padding:8px;box-shadow:0 6px 20px rgba(0,0,0,0.6);}
+  canvas{display:block;width:100%;height:160px;touch-action:none;cursor:crosshair;border-radius:6px}
+  .info{font-size:13px;color:var(--muted)}
+  .leftCol{flex:1;display:flex;flex-direction:column;gap:8px}
+  .rightCol{width:360px;display:flex;flex-direction:column;gap:8px}
+  .box{background:linear-gradient(180deg,#0c0c0c,#121212);padding:10px;border-radius:8px;border:1px solid #222}
+  label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+</style>
+</head>
+<body>
+  <div class="app">
+    <div class="top">
+      <div class="leftCol">
+        <div class="box">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <strong>Musica Prototype</strong><br><span class="info">88-key keyboard | SoundFont piano | MIDI playback</span>
+            </div>
+            <div class="controls">
+              <button id="initBtn">Init Piano</button>
+              <button id="testC">Play C4</button>
+              <button id="exportChord">Export Cmaj MIDI</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="keyboardWrap" class="box">
+          <canvas id="keyboard" width="1800" height="160"></canvas>
+        </div>
+
+        <div class="box">
+          <label for="midiUrl">Load MIDI URL (public .mid)</label>
+          <input id="midiUrl" placeholder="https://.../example.mid" style="width:70%" />
+          <div style="margin-top:8px;display:flex;gap:8px">
+            <button id="loadMidi">Load MIDI</button>
+            <button id="playMidi">Play MIDI</button>
+            <button id="stopMidi">Stop</button>
+            <select id="tempoMul">
+              <option value="1">1x</option>
+              <option value="0.75">0.75x</option>
+              <option value="1.25">1.25x</option>
+              <option value="1.5">1.5x</option>
+            </select>
+          </div>
+          <div id="midiInfo" style="margin-top:8px;color:var(--muted)"></div>
+        </div>
+      </div>
+
+      <div class="rightCol">
+        <div class="box">
+          <label>Visualizer</label>
+          <div id="nowPlaying" class="info">—</div>
+        </div>
+
+        <div class="box">
+          <label>Playback / Sound</label>
+          <div style="display:flex;gap:8px;align-items:center">
+            <label style="margin:0"><input type="checkbox" id="useSustain" /> Sustain (hold)</label>
+            <label style="margin:0"><input type="checkbox" id="useReverb" checked /> Reverb</label>
+          </div>
+        </div>
+
+        <div class="box">
+          <label>Notes</label>
+          <div class="info">
+            Click any key to play. Use "Init Piano" to load SoundFont. MIDI playback schedules keys visually and sonically.
+          </div>
+        </div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:#666">Prototype modular files: <strong>real-piano.js</strong> • <strong>piano-ui.js</strong> • <strong>midi-loader.js</strong></div>
+  </div>
+  <!--<div id="overlay" style="
+    position:fixed;top:0;left:0;width:100%;height:100%;
+    background:rgba(0,0,0,0.9);color:#fff;display:flex;
+    justify-content:center;align-items:center;z-index:9999;
+    font-size:1.5rem;cursor:pointer;">
+    
+  </div>-->
+  <!-- Libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/soundfont-player@0.12.0/dist/soundfont-player.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tonejs/midi@2.0.27/build/Midi.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsmidgen@0.1.7/lib/jsmidgen.min.js"></script>
+
+
+  <!-- Audio abstraction layer -->
+  <script src="assets/js/webaudiofont/WebAudioFontPlayer.js"></script>
+  <script src="assets/js/audio/webaudio-layer.js"></script>
+
+  <!-- Modular App Scripts -->
+  <script src="assets/js/real-piano.js"></script>
+  <script src="assets/js/real-piano-local.js"></script>
+  <script src="assets/js/ui/piano-ui.js"></script>
+  <script src="assets/js/midi/midi-loader.js"></script>
+  <script src="assets/js/prototype.js"></script>
+
+
+  <!-- App glue -->
+  <script>
+    (async () => {
+      try {
+        await RealPianoLocal.init({
+          basePath: 'assets/samples',
+          ext: '.mp3',
+          loadAll: true,
+          useReverb: true
+        });
+      } catch (e) {
+        console.error('Init failed', e);
+      }
+    })();
+    </script>
+    
+    
+
+  <script>
+    // wiring between modules
+    const keyboardCanvas = document.getElementById('keyboard');
+    const ui = window.PianoUI; // piano-ui.js exports PianoUI
+    const rp = window.RealPianoLocal;// real-piano.js exports RealPianoLocal
+    const midi = window.MidiLoader;
+
+    ui.init(keyboardCanvas, { onKeyDown: (note)=> rp.playNote(note), onKeyUp: (note)=> rp.stopNote && rp.stopNote(note) });
+
+    document.getElementById('initBtn').addEventListener('click', async () => {
+      document.getElementById('initBtn').disabled = true;
+      document.getElementById('initBtn').textContent = 'Loading...';
+      try {
+        await rp.init({useReverb: document.getElementById('useReverb').checked});
+        document.getElementById('initBtn').textContent = 'Ready';
+        document.getElementById('nowPlaying').textContent = 'Instrument: acoustic_grand_piano (Soundfont)';
+      } catch (e) {
+        console.error(e);
+        document.getElementById('initBtn').textContent = 'Init Failed';
+      }
+    });
+
+    document.getElementById('testC').addEventListener('click', ()=> rp.playNote('C4', 0.9, 1.6));
+    document.getElementById('exportChord').addEventListener('click', ()=>{
+      // simple C major chord midi (C4,E4,G4)
+      MidiLoader = midi; // alias
+      rp.exportChordAsMIDI(['C4','E4','G4']);
+    });
+
+    // MIDI controls
+    document.getElementById('loadMidi').addEventListener('click', async ()=>{
+      const url = document.getElementById('midiUrl').value.trim();
+      if (!url) return alert('Paste a public .mid URL');
+      document.getElementById('midiInfo').textContent = 'Loading...';
+      try {
+        const meta = await midi.loadFromUrl(url);
+        document.getElementById('midiInfo').textContent = `Loaded "${meta.name}" — ${meta.tracks} tracks, ${meta.duration.toFixed(2)}s`;
+      } catch (err) {
+        document.getElementById('midiInfo').textContent = 'Load failed';
+        console.error(err);
+      }
+    });
+
+    document.getElementById('playMidi').addEventListener('click', async ()=>{
+      const tempoMul = parseFloat(document.getElementById('tempoMul').value);
+      const url = document.getElementById('midiUrl').value.trim();
+      if (!url) return alert('Load a MIDI first');
+      document.getElementById('nowPlaying').textContent = 'Playing...';
+      // Schedule via MidiLoader (it will call the provided callback to play notes visually)
+      midi.play(url, {
+        tempoMul,
+        noteCallback: (note) => {
+          // note.name like "C4", note.duration seconds
+          rp.playNote(note.name, Math.min(1, (note.velocity || 0.9)), note.duration);
+          ui.flashKey(note.name, Math.min(1, (note.velocity || 0.9)));
+          document.getElementById('nowPlaying').textContent = `${note.name} @ ${note.time.toFixed(2)}s`;
+        },
+        endCallback: ()=> { document.getElementById('nowPlaying').textContent = 'Stopped'; }
+      });
+    });
+
+    document.getElementById('stopMidi').addEventListener('click', ()=>{
+      midi.stop();
+      document.getElementById('nowPlaying').textContent = 'Stopped';
+    });
+
+    // sustain toggle affects RealPiano sustain mode
+    document.getElementById('useSustain').addEventListener('change', (e)=> {
+      rp.setSustainEnabled && rp.setSustainEnabled(e.target.checked);
+    });
+
+    document.getElementById('useReverb').addEventListener('change', (e) => {
+      rp.setReverbEnabled?.(e.target.checked);
+    });
+  </script>
+
+<script>
+  // optional progress hook
+  RealPianoLocal.onprogress = (loaded, total) => {
+    console.log(`Samples loaded: ${loaded}/${total}`);
+    // update any UI progress bar here
+  };
+
+  // initialize on user gesture (recommended)
+  document.getElementById('overlay')?.addEventListener('click', async function initOnce() {
+    try {
+      // choose path & extension if different
+      await RealPianoLocal.init({ basePath: 'assets/samples', ext: '.mp3', useReverb: true });
+      console.log('RealPianoLocal ready');
+    } catch (e) {
+      console.error('Failed to init piano samples', e);
+    }
+    // remove overlay or change UI state
+  }, { once: true });
+
+  // example play — wire your existing playNote to call this:
+  function playNoteFromUI(noteName) {
+    if (RealPianoLocal && RealPianoLocal.isReady()) {
+      RealPianoLocal.playNote(noteName, 0.88, 2.0);
+    } else {
+      console.warn('RealPianoLocal not ready; call init or wait for samples to load.');
+    }
+  }
+</script>
+<script>
+(function() {
+  const canvas = document.getElementById('keyboard');
+  const ctx = canvas.getContext('2d');
+  const notes = [
+    "A0","A#0","B0","C1","C#1","D1","D#1","E1","F1","F#1","G1","G#1",
+    "A1","A#1","B1","C2","C#2","D2","D#2","E2","F2","F#2","G2","G#2",
+    "A2","A#2","B2","C3","C#3","D3","D#3","E3","F3","F#3","G3","G#3",
+    "A3","A#3","B3","C4","C#4","D4","D#4","E4","F4","F#4","G4","G#4",
+    "A4","A#4","B4","C5","C#5","D5","D#5","E5","F5","F#5","G5","G#5",
+    "A5","A#5","B5","C6","C#6","D6","D#6","E6","F6","F#6","G6","G#6",
+    "A6","A#6","B6","C7","C#7","D7","D#7","E7","F7","F#7","G7","G#7",
+    "A7","A#7","B7","C8"
+  ];
+
+  let keyMap = {};
+
+  function resizeCanvas() {
+    const dpr = window.devicePixelRatio || 1;
+    const width = canvas.clientWidth;
+    const height = 160;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    ctx.setTransform(1,0,0,1,0,0); // reset
+    ctx.scale(dpr, dpr);
+    drawKeyboard();
+  }
+
+  function drawKeyboard() {
+    ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);
+
+    const whiteNotes = notes.filter(n => !n.includes('#'));
+    const blackNotes = notes.filter(n => n.includes('#'));
+    const whiteW = canvas.clientWidth / whiteNotes.length;
+    const blackW = whiteW * 0.6;
+    const whiteH = canvas.clientHeight;
+    const blackH = whiteH * 0.65;
+
+    let x = 0;
+    keyMap = {};
+
+    // Draw white keys
+    for (let note of notes) {
+      if (!note.includes('#')) {
+        ctx.fillStyle = 'white';
+        ctx.fillRect(x, 0, whiteW, whiteH);
+        ctx.strokeStyle = '#000';
+        ctx.strokeRect(x, 0, whiteW, whiteH);
+        keyMap[note] = { x, isBlack: false, width: whiteW, height: whiteH };
+        x += whiteW;
+      }
+    }
+
+    // Draw black keys
+    x = 0;
+    for (let note of notes) {
+      if (!note.includes('#')) { x += whiteW; continue; }
+      const blackX = x - blackW / 2;
+      ctx.fillStyle = 'black';
+      ctx.fillRect(blackX, 0, blackW, blackH);
+      keyMap[note] = { x: blackX, isBlack: true, width: blackW, height: blackH };
+    }
+  }
+
+  // Optional: simple flash effect for key press
+  function flashKey(note) {
+    const k = keyMap[note];
+    if (!k) return;
+    ctx.fillStyle = k.isBlack ? '#444' : '#88f';
+    ctx.fillRect(k.x, 0, k.width, k.height);
+    setTimeout(drawKeyboard, 120);
+  }
+
+  // Mouse / touch events
+  canvas.addEventListener('mousedown', e => pressKey(e, true));
+  canvas.addEventListener('mouseup', e => pressKey(e, false));
+  canvas.addEventListener('touchstart', e => { pressKey(e.touches[0], true); e.preventDefault(); });
+  canvas.addEventListener('touchend', e => { pressKey(e.changedTouches[0], false); e.preventDefault(); });
+
+  function pressKey(e, down) {
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    // Black keys first
+    for (let k of notes.filter(n => n.includes('#'))) {
+      const key = keyMap[k];
+      if (mx >= key.x && mx <= key.x + key.width && my >= 0 && my <= key.height) {
+        down && window.RealPianoLocal?.playNote(k);
+        !down && window.RealPianoLocal?.stopNote?.(k);
+        flashKey(k);
+        return;
+      }
+    }
+    // White keys
+    for (let k of notes.filter(n => !n.includes('#'))) {
+      const key = keyMap[k];
+      if (mx >= key.x && mx <= key.x + key.width) {
+        down && window.RealPianoLocal?.playNote(k);
+        !down && window.RealPianoLocal?.stopNote?.(k);
+        flashKey(k);
+        return;
+      }
+    }
+  }
+
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,404 @@
+<!-- index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Musica</title>
+<link rel="shortcut icon" href="favicon.png" type="image/x-icon" />
+<style>
+  @font-face {
+    font-family: "Bravura";
+    src: url("assets/fonts/Bravura/otf/Bravura.otf") format("opentype");
+    font-display: swap;
+  }
+  @import url('https://fonts.googleapis.com/css2?family=League+Spartan:wght@100..900&display=swap');
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #000;
+    height: 100%;
+    overflow: hidden;
+    color: #fff;
+    font-family: "League Spartan", sans-serif;
+  }
+
+  iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 88%;
+    border: none;
+    background: #111;
+    z-index: 1;
+  }
+
+  /* piano canvas area */
+  .piano-area {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 12%;
+    z-index: 2;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    pointer-events: none; /* individual handlers on canvas */
+  }
+
+  canvas#pianoCanvas {
+    width: 100%;
+    height: 100%;
+    background: #111;
+    cursor: pointer;
+    border-top: 2px solid #222;
+    pointer-events: auto;
+    display: block;
+  }
+
+  /* loading overlay */
+  #overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    inset: 0;
+    font-size: 1.15rem;
+    font-weight: bold;
+    inset: 0;
+    color: #fff;
+    font-family: 'Segoe UI', sans-serif;
+    z-index: 9999;
+    background: radial-gradient(circle at center, rgba(34,34,34,0.99) 0%, rgba(0,0,0,0.99) 80%);
+    transition: opacity 0.8s ease;
+    width: 100vw;          /* Full width of viewport */
+    height: 100vh;         /* Full height of viewport */
+    overflow: hidden;
+  }
+
+  #overlay-content {
+    text-align: center;
+    max-width: 600px;      /* Max width to keep content nicely centered */
+    width: 90%;            /* Responsive */
+  }
+  #overlay .msg { margin-top: 14px; color: #ddd; font-weight: 400; font-size: 0.95rem; }
+
+  /* small info pill above keyboard */
+  #noteInfo {
+    position: absolute;
+    bottom: calc(12% + 10px); /* sits just above the canvas */
+    left: 16px;
+    z-index: 999;
+    background: rgba(0,0,0,0.6);
+    border: 1px solid #222;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #fff;
+    pointer-events: none;
+    backdrop-filter: blur(4px);
+  }
+
+  /* subtle focus for keyboard-ready state */
+  .ready-indicator {
+    position: absolute;
+    top: 0px;
+    right: 16px;
+    color: #9ef;
+    font-size: 12px;
+    z-index: 999;
+    opacity: 0.9;
+  }
+</style>
+</head>
+
+<body>
+
+<!-- Splash/Loading Overlay -->
+<div id="overlay">
+  <img src="assets/images/logo.png" alt="logo" style="width:160px;height:160px;object-fit:contain">
+  <div id="loading-text" style="color:white; font-size:1.2em; margin-top:20px;">🎹 Loading samples... 0%</div>
+</div>
+
+<iframe id="previewFrame" src="previewer.html"></iframe>
+
+<div id="noteInfo">—</div>
+<div class="ready-indicator" id="readyIndicator">Not ready</div>
+
+<div class="piano-area">
+  <canvas id="pianoCanvas" aria-label="musica keyboard"></canvas>
+</div>
+
+<div id="placeholder"></div>
+
+<!-- Load WebAudioFont Engine (kept for other app parts) -->
+<script src="assets/js/webaudiofont/WebAudioFontPlayer.js"></script>
+<script src="assets/js/webaudiofont/0090_JCLive_sf2_file.js"></script>
+
+<!-- Load Soundfont.js for Real Piano -->
+<script src="https://unpkg.com/soundfont-player@0.7.0/dist/soundfont-player.min.js"></script>
+
+<!-- Load Real Piano and Main Piano Logic -->
+<script src="assets/js/fullscreen.js"></script>
+<script src="assets/js/real-piano-local.js"></script>
+
+<!-- piano UI helper if you have it (optional) -->
+<script src="assets/js/ui/piano-ui.js"></script>
+
+<!-- main piano controller -->
+<script src="assets/js/piano.js"></script>
+
+<script>
+  async function initPiano() {
+    console.log("🎹 Initializing Real Piano...");
+    try {
+      await RealPiano.init(); // make sure your real-piano.js exposes RealPiano.init()
+      console.log("✅ Real Piano initialized successfully.");
+    } catch (err) {
+      console.error("Failed to initialize Real Piano:", err);
+    }
+  }
+
+  window.addEventListener("load", initPiano);
+</script>
+<script>
+(async function(){
+  const canvas = document.getElementById('pianoCanvas');
+  const ctx = canvas.getContext('2d');
+  const notes = [..."A0,A#0,B0,C1,C#1,D1,D#1,E1,F1,F#1,G1,G#1,".repeat(8)].join("").split(",").filter(Boolean);
+  let keyMap = {};
+
+  function resizeCanvas() {
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = canvas.clientWidth * dpr;
+    canvas.height = canvas.clientHeight * dpr;
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.scale(dpr,dpr);
+    drawKeyboard();
+  }
+
+  function drawKeyboard() {
+    ctx.clearRect(0,0,canvas.clientWidth,canvas.clientHeight);
+    const whiteNotes = notes.filter(n=>!n.includes('#'));
+    const blackNotes = notes.filter(n=>n.includes('#'));
+    const whiteW = canvas.clientWidth / whiteNotes.length;
+    const blackW = whiteW*0.6;
+    const whiteH = canvas.clientHeight;
+    const blackH = whiteH*0.65;
+    let x=0;
+    keyMap={};
+
+    for(let n of notes){
+      if(!n.includes('#')){
+        ctx.fillStyle='white';
+        ctx.fillRect(x,0,whiteW,whiteH);
+        ctx.strokeStyle='#000';
+        ctx.strokeRect(x,0,whiteW,whiteH);
+        keyMap[n]={x,width:whiteW,height:whiteH,isBlack:false};
+        x+=whiteW;
+      }
+    }
+
+    x=0;
+    for(let n of notes){
+      if(n.includes('#')){
+        const kx = x-whiteW*0.3;
+        ctx.fillStyle='black';
+        ctx.fillRect(kx,0,blackW,blackH);
+        keyMap[n]={x:kx,width:blackW,height:blackH,isBlack:true};
+      }else x+=whiteW;
+    }
+  }
+
+  function flashKey(note){
+    const k = keyMap[note];
+    if(!k) return;
+    ctx.fillStyle = k.isBlack ? '#444' : '#88f';
+    ctx.fillRect(k.x,0,k.width,k.height);
+    setTimeout(drawKeyboard,120);
+  }
+
+  function playNoteFromUI(note) {
+    const r = document.getElementById('readyIndicator')
+    if (window.RealPianoLocal && RealPianoLocal.isReady()) {
+        RealPianoLocal.playNote(note, 0.88, 1.5);
+        flashKey(note);
+        r.innerHTML = "Ready";
+        r.style.color = 'green';
+    } else {
+        console.warn('Piano not ready yet:', note);
+        r.innerHTML = "Not ready";
+        r.style.color = 'red';
+    }
+  }
+
+  function handlePress(e, down){
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    for(let n of notes.filter(n=>n.includes('#'))){
+      const k = keyMap[n];
+      if(mx>=k.x && mx<=k.x+k.width && my>=0 && my<=k.height){
+        down && playNoteFromUI(n);
+        return;
+      }
+    }
+    for(let n of notes.filter(n=>!n.includes('#'))){
+      const k = keyMap[n];
+      if(mx>=k.x && mx<=k.x+k.width){
+        down && playNoteFromUI(n);
+        return;
+      }
+    }
+  }
+
+  canvas.addEventListener('mousedown', e=>handlePress(e,true));
+  canvas.addEventListener('mouseup', e=>handlePress(e,false));
+  canvas.addEventListener('touchstart', e=>{handlePress(e.touches[0],true); e.preventDefault();});
+  canvas.addEventListener('touchend', e=>{handlePress(e.changedTouches[0],false); e.preventDefault();});
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+})();
+</script>
+
+
+<script>
+  // Force fullscreen
+  async function enterFullscreen() {
+    const elem = document.documentElement;
+    if (elem.requestFullscreen) await elem.requestFullscreen();
+    else if (elem.webkitRequestFullscreen) await elem.webkitRequestFullscreen();
+    else if (elem.msRequestFullscreen) await elem.msRequestFullscreen();
+  }
+
+  // Smoothly hide overlay
+  function hideOverlay() {
+    const overlay = document.getElementById('overlay');
+    if (!overlay) return;
+    overlay.style.opacity = '0';
+    setTimeout(() => overlay.style.display = 'none', 600); // match CSS transition
+  }
+
+  // Wait until everything is ready
+  async function waitForEverything() {
+    // 1. Wait for DOM + images
+    await new Promise(resolve => {
+      if (document.readyState === 'complete') resolve();
+      else window.addEventListener('load', resolve);
+    });
+
+    // 2. Enter fullscreen
+    await enterFullscreen().catch(() => console.warn('Fullscreen request denied'));
+
+    // 3. Initialize piano
+    if (window.RealPianoLocal && RealPianoLocal.init) {
+      try {
+        await RealPianoLocal.init();
+        console.log('✅ RealPianoLocal initialized.');
+      } catch (err) {
+        console.error('Failed to initialize RealPianoLocal:', err);
+      }
+    }
+
+    // 4. Ensure canvas renders at least one frame
+    const canvas = document.getElementById('pianoCanvas');
+    if (canvas && canvas.getContext) await new Promise(r => requestAnimationFrame(r));
+
+    // 5. Hide overlay
+    hideOverlay();
+  }
+
+  waitForEverything();
+</script>
+
+<script>
+(() => {
+  // Only enable if this page contains the iframe; safe for multiple pages
+  // For security, you may want to check event.origin in production.
+  function requestFullscreenOnRoot() {
+    const el = document.documentElement;
+    if (!el) return Promise.reject(new Error('No documentElement'));
+    if (el.requestFullscreen) return el.requestFullscreen();
+    if (el.webkitRequestFullscreen) return el.webkitRequestFullscreen();
+    if (el.msRequestFullscreen) return el.msRequestFullscreen();
+    return Promise.reject(new Error('No fullscreen API available'));
+  }
+
+  function exitFullscreenOnRoot() {
+    if (document.exitFullscreen) return document.exitFullscreen();
+    if (document.webkitExitFullscreen) return document.webkitExitFullscreen();
+    if (document.msExitFullscreen) return document.msExitFullscreen();
+    return Promise.reject(new Error('No exit fullscreen API available'));
+  }
+
+  // Called by postMessage handler or directly if iframe tried direct parent access
+  async function handleRequestFullscreen() {
+    try {
+      await requestFullscreenOnRoot();
+      console.log('✅ index.html entered fullscreen');
+      informIframeOfState(true);
+    } catch (err) {
+      console.error('❌ index.html fullscreen request failed:', err);
+    }
+  }
+
+  async function handleExitFullscreen() {
+    try {
+      await exitFullscreenOnRoot();
+      console.log('✅ index.html exited fullscreen');
+      informIframeOfState(false);
+    } catch (err) {
+      console.error('❌ index.html exit fullscreen failed:', err);
+    }
+  }
+
+  // Send a message back to the iframe(s) to update UI
+  function informIframeOfState(isFullscreen) {
+    const iframes = Array.from(document.getElementsByTagName('iframe'));
+    iframes.forEach(f => {
+      try { f.contentWindow.postMessage({ type: 'FULLSCREEN_STATE', isFullscreen }, '*'); }
+      catch(e){ /* ignore cross-origin */ }
+    });
+  }
+
+  // Listen for iframe requests
+  window.addEventListener('message', (ev) => {
+    const msg = ev?.data || {};
+    if (!msg || !msg.type) return;
+
+    // SECURITY: If this app ever runs with untrusted iframes, check ev.origin and ev.source here.
+
+    if (msg.type === 'REQUEST_FULLSCREEN') {
+      // If already fullscreen, toggle out; otherwise enter fullscreen
+      const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+      if (!isFs) handleRequestFullscreen();
+      else handleExitFullscreen();
+    }
+  });
+
+  // Also listen for native fullscreenchange events to inform iframe (user may press ESC)
+  document.addEventListener('fullscreenchange', () => {
+    const isFs = !!document.fullscreenElement;
+    informIframeOfState(isFs);
+  });
+  document.addEventListener('webkitfullscreenchange', () => {
+    const isFs = !!document.webkitFullscreenElement;
+    informIframeOfState(isFs);
+  });
+  document.addEventListener('msfullscreenchange', () => {
+    const isFs = !!document.msFullscreenElement;
+    informIframeOfState(isFs);
+  });
+
+  // Helpful debug message
+  console.log('Parent fullscreen handler installed (listening for REQUEST_FULLSCREEN).');
+})();
+</script>
+
+</body>
+</html>
