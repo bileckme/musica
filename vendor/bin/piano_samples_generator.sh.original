@@ -1,0 +1,71 @@
+#!/bin/bash
+# ---------------------------------------------------------------
+# Generate 88 piano note WAVs (MIDI 21–108) using FluidSynth
+# Labels: A0.wav, B0.wav, etc.
+# Optionally convert WAVs to MP3 at the end
+# ---------------------------------------------------------------
+
+SF2_FILE="$1"
+OUTPUT_DIR="assets/samples"
+SAMPLE_RATE=44100
+GAIN=0.8
+DURATION=2   # seconds per note
+
+if [ -z "$SF2_FILE" ]; then
+  echo "❌ Usage: $0 /path/to/Piano.sf2"
+  exit 1
+fi
+
+if [ ! -f "$SF2_FILE" ]; then
+  echo "❌ SoundFont not found: $SF2_FILE"
+  exit 1
+fi
+
+mkdir -p "$OUTPUT_DIR"
+
+midi_to_note() {
+  local MIDI=$1
+  local NOTES=(C C# D D# E F F# G G# A A# B)
+  local NOTE_INDEX=$(( MIDI % 12 ))
+  local OCTAVE=$(( MIDI / 12 - 1 ))
+  echo "${NOTES[$NOTE_INDEX]}$OCTAVE"
+}
+
+echo "🎹 Rendering samples from $SF2_FILE ..."
+
+for MIDI in $(seq 21 108); do
+  NOTE_NAME=$(midi_to_note $MIDI)
+  OUT_FILE="$OUTPUT_DIR/${NOTE_NAME}.wav"
+
+  # Direct FluidSynth rendering
+  fluidsynth -ni -F "$OUT_FILE" -r $SAMPLE_RATE "$SF2_FILE" <<EOF
+noteon 0 $MIDI 127
+sleep $DURATION
+noteoff 0 $MIDI
+quit
+EOF
+
+  if [ -f "$OUT_FILE" ]; then
+    echo "🎵 Rendered $NOTE_NAME → $OUT_FILE"
+  else
+    echo "⚠️ Failed $NOTE_NAME"
+  fi
+done
+
+echo "---------------------------------------------------------------"
+echo "✅ WAV samples saved in: $OUTPUT_DIR/"
+
+# Ask user if they want to convert to MP3
+read -p "Do you want to convert all WAVs to MP3? (y/n): " CONVERT
+
+if [[ "$CONVERT" =~ ^[Yy]$ ]]; then
+  echo "🎶 Converting WAVs to MP3..."
+  for WAV in "$OUTPUT_DIR"/*.wav; do
+    MP3="${WAV%.wav}.mp3"
+    ffmpeg -loglevel error -y -i "$WAV" -codec:a libmp3lame -qscale:a 2 "$MP3"
+    echo "🎵 Converted $(basename "$WAV") → $(basename "$MP3")"
+  done
+  echo "✅ All WAVs converted to MP3."
+fi
+
+echo "🎹 Done!"
