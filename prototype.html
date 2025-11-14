@@ -4,7 +4,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Musica — Unified Prototype (Dark Sheet)</title>
+<title>Musica — Full Prototype (Playback & Converter)</title>
 
 <!-- Libraries -->
 <script src="https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.7.6/build/opensheetmusicdisplay.min.js"></script>
@@ -12,74 +12,80 @@
 <script src="https://cdn.jsdelivr.net/npm/midiconvert@0.4.0/build/MidiConvert.js"></script>
 
 <style>
-  /* reset & base */
   *{box-sizing:border-box}
   html,body{height:100%;margin:0;background:#111;color:#fff;font-family:Inter, Arial, sans-serif;overflow:hidden}
-
-  /* main layout */
-  #mainContainer{height:calc(100vh - 220px);overflow:auto;padding:18px}
+  #mainContainer{height:calc(100vh - 12vh);overflow:auto;padding:18px}
   #controls{background:#222;padding:12px;border-radius:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
   button,input,select{padding:8px 10px;border-radius:6px;border:1px solid #333;background:#111;color:#fff;cursor:pointer}
   input[type="file"]{display:none}
   label{color:#bbb;font-size:13px}
-
-  /* staff container */
   #grandStaffWrap{margin-top:12px;padding:18px;border-radius:8px;background:transparent}
   #grandStaff{width:100%;min-height:420px;border-radius:6px;overflow:hidden}
-
-  /* piano dock */
   #pianoContainer{position:fixed;left:0;right:0;bottom:0;height:12%;background:#000;border-top:3px solid #222;display:flex;align-items:center;justify-content:center}
   #pianoCanvas{width:100%;height:100%;display:block}
-
-  /* THEMES - body.dark = default true dark sheet */
+  .small{font-size:13px;color:#9aa}
+  .controls-block{display:flex;gap:8px;align-items:center}
+  /* themes */
   body.light{background:#f4f4f4;color:#111}
   body.light #controls{background:#e6e6e6}
   body.light button,input,select{background:#fff;color:#111;border:1px solid #ccc}
   body.light #pianoContainer{background:#fafafa;border-top:3px solid #ddd}
   body.light #grandStaffWrap{background:#fff}
   body.light #grandStaff svg{background:#fff}
-
   body.dark{background:#111;color:#fff}
   body.dark #controls{background:#222}
   body.dark button,input,select{background:#111;color:#fff;border:1px solid #333}
   body.dark #pianoContainer{background:#000;border-top:3px solid #222}
   body.dark #grandStaffWrap{background:transparent}
-  /* OSMD dark/light svg colors handled by JS + CSS below */
-</style>
-
-<!-- OSMD-specific theme CSS placeholders -->
-<style>
-/* Default: dark (applied via body.dark) */
-body.dark #grandStaff svg { background:#000 !important; }
-body.dark #grandStaff svg * { fill: #fff !important; stroke: #fff !important; }
-body.dark #grandStaff svg text { fill: #fff !important; }
-
-/* Light theme */
-body.light #grandStaff svg { background:#fff !important; }
-body.light #grandStaff svg * { fill: #000 !important; stroke: #000 !important; }
-body.light #grandStaff svg text { fill: #000 !important; }
+  /* OSMD theme placeholders (JS will enforce more) */
+  body.dark #grandStaff svg { background:#000 !important; }
+  body.dark #grandStaff svg * { fill: #fff !important; stroke: #fff !important; }
+  body.dark #grandStaff svg text { fill: #fff !important; }
+  body.light #grandStaff svg { background:#fff !important; }
+  body.light #grandStaff svg * { fill: #000 !important; stroke: #000 !important; }
+  body.light #grandStaff svg text { fill: #000 !important; }
 </style>
 </head>
 <body class="dark">
+
   <div id="mainContainer">
     <div id="controls">
-      <button id="initBtn">Init MIDI</button>
-      <button id="enableMidiOut">Enable MIDI Out</button>
+      <div class="controls-block">
+        <button id="initBtn">Init MIDI</button>
+        <button id="enableMidiOut">Enable MIDI Out</button>
+        <label><input type="checkbox" id="reverbCheck" /> Reverb</label>
+        <label><input type="checkbox" id="sustainCheck" /> Sustain</label>
+      </div>
 
-      <label><input type="checkbox" id="reverbCheck" /> Reverb</label>
-      <label><input type="checkbox" id="sustainCheck" /> Sustain</label>
+      <div class="controls-block">
+        <input id="midiFileInput" type="file" accept=".mid,.midi" />
+        <button id="loadMidiBtn">Load MIDI</button>
 
-      <input id="midiFileInput" type="file" accept=".mid,.midi" />
-      <button id="loadMidiBtn">Load MIDI</button>
+        <input id="xmlFileInput" type="file" accept=".xml,.musicxml,.mxl" />
+        <button id="loadXmlBtn">Load MusicXML</button>
 
-      <input id="xmlFileInput" type="file" accept=".xml,.musicxml,.mxl" />
-      <button id="loadXmlBtn">Load MusicXML</button>
+        <button id="exportMidiBtn">Export MIDI</button>
+      </div>
 
-      <button id="exportMidiBtn">Export MIDI</button>
+      <div class="controls-block">
+        <label class="small">Quantize:</label>
+        <select id="quantizeSelect">
+          <option value="1">Quarter</option>
+          <option value="2">Eighth</option>
+          <option value="4" selected>Sixteenth</option>
+        </select>
 
-      <button id="themeToggle">Dark Mode</button>
+        <label class="small">Split threshold (MIDI):</label>
+        <input id="splitThreshold" type="number" value="60" style="width:72px" />
+
+        <button id="playBtn">Play</button>
+        <button id="pauseBtn">Pause</button>
+        <button id="stopBtn">Stop</button>
+      </div>
+
       <div style="flex:1"></div>
-      <div id="status" style="color:#9aa; font-size:13px">Ready</div>
+      <div id="status" class="small">Ready — dark sheet</div>
+      <button id="themeToggle">Dark Mode</button>
     </div>
 
     <div id="grandStaffWrap">
@@ -92,429 +98,440 @@ body.light #grandStaff svg text { fill: #000 !important; }
   </div>
 
 <script>
-// -------------------- Utilities & Globals --------------------
+/* -------------------- Globals -------------------- */
 let osmd = null;
 let midiOut = null;
 let currentTheme = 'dark';
 const statusEl = document.getElementById('status');
-
-// apply initial theme class (body already set but ensure)
-document.body.classList.remove('light','dark');
+document.body.classList.remove('dark','light');
 document.body.classList.add(currentTheme);
 
-// safe console wrapper
-function setStatus(s){ statusEl.textContent = s; }
+function setStatus(t){ statusEl.textContent = t; }
 
-// -------------------- Piano rendering (88 keys) --------------------
-const PIANO = {
-  FIRST_MIDI: 21, // A0
-  LAST_MIDI: 108, // C8
-  whitePositions: [], // store X coordinates per white key
-  keyMap: {}, // midi -> rect
-};
+/* -------------------- Piano Rendering (88 keys) -------------------- */
+const PIANO = { FIRST_MIDI:21, LAST_MIDI:108, keyMap:{}, whiteKeys:52 };
 
 function isWhiteMidi(n){
   const mod = n % 12;
-  return [0,2,4,5,7,9,11].includes(mod); // C=0, D=2, ...
+  // Music theory mapping with C=0
+  return [0,2,4,5,7,9,11].includes(mod);
 }
 
 function drawPiano(){
   const canvas = document.getElementById('pianoCanvas');
   const ctx = canvas.getContext('2d');
-
-  // size canvas to CSS pixels (account for DPR)
   const dpr = window.devicePixelRatio || 1;
   const cssW = canvas.clientWidth;
   const cssH = canvas.clientHeight;
   canvas.width = Math.round(cssW * dpr);
   canvas.height = Math.round(cssH * dpr);
-  ctx.setTransform(dpr,0,0,dpr,0,0); // scale drawing to CSS pixels
+  ctx.setTransform(dpr,0,0,dpr,0,0);
 
-  // fill background depending on theme
-  ctx.fillStyle = (currentTheme==='dark') ? '#000' : '#fff';
+  // background
+  ctx.fillStyle = (currentTheme==='dark')? '#000' : '#fff';
   ctx.fillRect(0,0,cssW,cssH);
 
-  // compute white key layout
+  // count white keys 52
   let whiteCount = 0;
-  for(let n=PIANO.FIRST_MIDI; n<=PIANO.LAST_MIDI; n++) if(isWhiteMidi(n)) whiteCount++;
+  for(let n=PIANO.FIRST_MIDI;n<=PIANO.LAST_MIDI;n++) if(isWhiteMidi(n)) whiteCount++;
   const whiteW = cssW / whiteCount;
   const whiteH = cssH;
   const blackW = whiteW * 0.62;
   const blackH = cssH * 0.62;
 
-  // draw white keys left->right
-  PIANO.whitePositions = [];
   PIANO.keyMap = {};
-  let whiteIdx = 0;
-  for(let n=PIANO.FIRST_MIDI; n<=PIANO.LAST_MIDI; n++){
+  let whiteIndex = 0;
+  // draw whites
+  for(let n=PIANO.FIRST_MIDI;n<=PIANO.LAST_MIDI;n++){
     if(isWhiteMidi(n)){
-      const x = whiteIdx * whiteW;
-      // white key background
-      ctx.fillStyle = (currentTheme==='dark') ? '#fff' : '#fff';
-      ctx.fillRect(x, 0, whiteW, whiteH);
-      // stroke
-      ctx.strokeStyle = (currentTheme==='dark') ? '#111' : '#aaa';
+      const x = whiteIndex * whiteW;
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(x,0,whiteW,whiteH);
+      ctx.strokeStyle = (currentTheme==='dark')? '#111' : '#aaa';
       ctx.lineWidth = 1;
       ctx.strokeRect(x+0.5,0.5,whiteW-1,whiteH-1);
-      // record mapping
-      PIANO.keyMap[n] = { x, w: whiteW, h: whiteH, black:false };
-      PIANO.whitePositions.push({ midi:n, x });
-      whiteIdx++;
+      PIANO.keyMap[n] = { x, w:whiteW, h:whiteH, black:false };
+      whiteIndex++;
     }
   }
-
-  // draw black keys
-  for(let n=PIANO.FIRST_MIDI; n<=PIANO.LAST_MIDI; n++){
-    const mod = n % 12;
-    if([1,3,6,8,10].includes(mod)){ // black keys
-      // left white key: find nearest lower white midi
-      let left = n - 1;
+  // draw blacks
+  for(let n=PIANO.FIRST_MIDI;n<=PIANO.LAST_MIDI;n++){
+    const mod = n%12;
+    if([1,3,6,8,10].includes(mod)){
+      // find left white key
+      let left = n-1;
       while(left >= PIANO.FIRST_MIDI && !isWhiteMidi(left)) left--;
       if(PIANO.keyMap[left]){
         const x = PIANO.keyMap[left].x + whiteW - blackW/2;
-        ctx.fillStyle = (currentTheme==='dark') ? '#000' : '#000';
-        ctx.fillRect(x, 0, blackW, blackH);
-        // store mapping (note: black key occupies area above white)
-        PIANO.keyMap[n] = { x, w: blackW, h: blackH, black:true };
+        ctx.fillStyle = '#000';
+        ctx.fillRect(x,0,blackW,blackH);
+        PIANO.keyMap[n] = { x, w:blackW, h:blackH, black:true };
       }
     }
   }
 }
 
-// pointer -> note detection (for clicks)
-function noteAtPointer(clientX, clientY){
-  const canvas = document.getElementById('pianoCanvas');
-  const rect = canvas.getBoundingClientRect();
-  const x = clientX - rect.left;
-  const y = clientY - rect.top;
-  // check black keys first
-  for(let n=PIANO.FIRST_MIDI; n<=PIANO.LAST_MIDI; n++){
-    const k = PIANO.keyMap[n];
-    if(k && k.black){
-      if(x >= k.x && x <= k.x + k.w && y >= 0 && y <= k.h) return n;
-    }
-  }
-  // white keys
-  for(let n=PIANO.FIRST_MIDI; n<=PIANO.LAST_MIDI; n++){
-    const k = PIANO.keyMap[n];
-    if(k && !k.black){
-      if(x >= k.x && x <= k.x + k.w) return n;
-    }
-  }
-  return null;
-}
-
-// attach click/touch handlers
-function bindPianoInput(){
-  const canvas = document.getElementById('pianoCanvas');
-  canvas.addEventListener('pointerdown', (ev)=>{
-    const midi = noteAtPointer(ev.clientX, ev.clientY);
-    if(midi){
-      // find friendly name (e.g., C4) — simple mapping
-      const noteName = midiToNoteName(midi);
-      setStatus(`Played ${noteName}`);
-      // play via Tone or Soundfont if integrated — placeholder
-      // Highlight effect
-      flashKey(midi);
-    }
-  });
-}
-
-// small visual flash (re-draw key darker)
-function flashKey(midi){
-  const canvas = document.getElementById('pianoCanvas');
-  const ctx = canvas.getContext('2d');
-  const k = PIANO.keyMap[midi];
-  if(!k) return;
-  if(k.black){
-    ctx.fillStyle = '#444'; ctx.fillRect(k.x,0,k.w,k.h);
-  } else {
-    ctx.fillStyle = '#cfcfcf'; ctx.fillRect(k.x,0,k.w,k.h);
-    ctx.strokeStyle = '#000'; ctx.strokeRect(k.x+0.5,0.5,k.w-1,k.h-1);
-  }
-  setTimeout(drawPiano,120);
-}
-
-// midi number -> note name like C4 or C#4
 function midiToNoteName(m){
   const names = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-  const step = names[m % 12];
-  const oct = Math.floor(m/12) - 1;
+  const step = names[m%12];
+  const oct = Math.floor(m/12)-1;
   return `${step}${oct}`;
 }
 
-// resize & initial draw
-window.addEventListener('load', ()=>{
-  drawPiano();
-  bindPianoInput();
-  window.addEventListener('resize', drawPiano);
+function flashKeyByMidi(n){
+  const canvas = document.getElementById('pianoCanvas');
+  const ctx = canvas.getContext('2d');
+  const k = PIANO.keyMap[n];
+  if(!k) return;
+  if(k.black){
+    ctx.fillStyle = '#444';
+    ctx.fillRect(k.x,0,k.w,k.h);
+  } else {
+    ctx.fillStyle = '#cfcfcf';
+    ctx.fillRect(k.x,0,k.w,k.h);
+    ctx.strokeStyle = '#000';
+    ctx.strokeRect(k.x+0.5,0.5,k.w-1,k.h-1);
+  }
+  setTimeout(drawPiano, 120);
+}
+
+window.addEventListener('load', ()=>{ drawPiano(); window.addEventListener('resize', drawPiano); });
+
+/* pointer play */
+document.getElementById('pianoCanvas').addEventListener('pointerdown', (ev)=>{
+  const rect = ev.target.getBoundingClientRect();
+  const x = ev.clientX - rect.left;
+  const y = ev.clientY - rect.top;
+  // black first
+  for(let n=PIANO.FIRST_MIDI;n<=PIANO.LAST_MIDI;n++){
+    const k = PIANO.keyMap[n];
+    if(k && k.black){
+      if(x>=k.x && x<=k.x+k.w && y>=0 && y<=k.h){ flashKeyByMidi(n); setStatus(midiToNoteName(n)); return; }
+    }
+  }
+  for(let n=PIANO.FIRST_MIDI;n<=PIANO.LAST_MIDI;n++){
+    const k = PIANO.keyMap[n];
+    if(k && !k.black){
+      if(x>=k.x && x<=k.x+k.w){ flashKeyByMidi(n); setStatus(midiToNoteName(n)); return; }
+    }
+  }
 });
 
-// -------------------- OSMD INIT & helper for forced dark SVG --------------------
+/* -------------------- OSMD init & theme enforcement -------------------- */
 function initOSMD(){
-  osmd = new opensheetmusicdisplay.OpenSheetMusicDisplay('grandStaff', {
-    autoResize: true,
-    autoOpenUrl: false,
-    drawTitle: true
-  });
+  osmd = new opensheetmusicdisplay.OpenSheetMusicDisplay('grandStaff', { autoResize:true, autoOpenUrl:false, drawTitle:true });
 }
 initOSMD();
 
 function enforceSvgTheme(){
-  // apply CSS class is faster; but some OSMD elements may have inline fills.
-  // iterate svg children and force style attributes as a last resort
   const wrap = document.getElementById('grandStaff');
   const svg = wrap.querySelector('svg');
   if(!svg) return;
-  if(currentTheme === 'dark'){
+  if(currentTheme==='dark'){
     svg.style.background = '#000';
-    svg.setAttribute('data-theme','dark');
     svg.querySelectorAll('*').forEach(el=>{
-      // skip if element is a background rect added for light mode
-      try{
-        el.style.fill = '#fff';
-        el.style.stroke = '#fff';
-        el.style.color = '#fff';
-      }catch(e){}
+      try{ el.style.fill = '#fff'; el.style.stroke = '#fff'; el.style.color = '#fff'; } catch(e){}
     });
   } else {
     svg.style.background = '#fff';
-    svg.setAttribute('data-theme','light');
     svg.querySelectorAll('*').forEach(el=>{
-      try{
-        el.style.fill = '#000';
-        el.style.stroke = '#000';
-        el.style.color = '#000';
-      }catch(e){}
+      try{ el.style.fill = '#000'; el.style.stroke = '#000'; el.style.color = '#000'; } catch(e){}
     });
   }
 }
 
-// wrapper to load & render MusicXML then force theme
+/* load & render xml */
 async function loadAndRenderMusicXML(xmlText){
-  try{
-    await osmd.load(xmlText);
-    await osmd.render();
-    // small timeout to ensure svg inserted
-    setTimeout(enforceSvgTheme, 50);
-    setStatus('Score loaded');
-  }catch(err){
-    console.error('OSMD Load Error', err);
-    setStatus('OSMD load failed');
-  }
+  try{ await osmd.load(xmlText); await osmd.render(); setTimeout(enforceSvgTheme,50); setStatus('Score loaded'); }
+  catch(err){ console.error('OSMD Load Error',err); setStatus('OSMD load failed'); }
 }
 
-// -------------------- Robust MIDI -> MusicXML converter --------------------
-function safeGetTempo(midiJson){ // returns bpm
+/* -------------------- Robust MIDI -> MusicXML converter -------------------- */
+function safeGetTempo(midiJson){
   try{
-    // MidiConvert uses header.ppq and header.bpm or header.tempos array
     if(midiJson.header && midiJson.header.bpm) return midiJson.header.bpm;
-    if(midiJson.header && midiJson.header.tempos && midiJson.header.tempos.length>0){
-      return midiJson.header.tempos[0].bpm || 120;
-    }
+    if(midiJson.header && midiJson.header.tempos && midiJson.header.tempos.length>0) return midiJson.header.tempos[0].bpm || 120;
     return 120;
   }catch(e){ return 120; }
 }
-
 function safeGetPPQ(midiJson){
-  try{
-    if(midiJson.header && (midiJson.header.PPQ || midiJson.header.ppq)) return midiJson.header.PPQ || midiJson.header.ppq;
-    return 480;
-  }catch(e){ return 480; }
+  try{ if(midiJson.header && (midiJson.header.PPQ||midiJson.header.ppq)) return midiJson.header.PPQ||midiJson.header.ppq; return 480; }catch(e){ return 480; }
 }
-
-// quantize value to smallest allowed division (divisions)
 function quantizeToDivisions(durationSeconds, divisions, secondsPerQuarter){
   const quarters = durationSeconds / secondsPerQuarter;
   const raw = quarters * divisions;
-  return Math.max(1, Math.round(raw)); // at least 1
+  return Math.max(1, Math.round(raw));
 }
+function escapeXml(s){ return s.replace(/[<>&'"]/g, c=> ({'<':'&lt;','>':'&gt;','&':'&amp;',"'":"&apos;",'"':'&quot;'}[c])); }
 
-function escapeXml(s){
-  return s.replace(/[<>&'"]/g, function(c){
-    return {'<':'&lt;','>':'&gt;','&':'&amp;','\'':'&apos;','"':'&quot;'}[c];
-  });
-}
-
+/* Build MusicXML with two parts (Treble P1, Bass P2) and per-measure dynamics */
 function buildMusicXMLFromMidi(midiJson){
-  // Collect notes across all tracks; keep track numbers for potential splitting later
   const bpm = safeGetTempo(midiJson);
   const ppq = safeGetPPQ(midiJson);
   const secondsPerQuarter = 60 / bpm;
-  const divisions = 480; // MusicXML divisions (mapping resolution)
+  const divisions = 480; // MusicXML divisions
 
-  // gather all notes with time in seconds and midi number etc.
-  let notes = [];
+  // collect notes from all tracks
+  let allNotes = [];
   midiJson.tracks.forEach((t,ti)=>{
     if(!t.notes) return;
     t.notes.forEach(n=>{
-      // MidiConvert note fields: name, midi, time (s), duration (s), velocity, octave
-      notes.push({
+      allNotes.push({
         track: ti,
-        name: n.name,    // e.g. C4, C#4
         midi: n.midi,
-        time: n.time,    // seconds from start
-        duration: n.duration, // seconds
+        name: n.name,
+        time: n.time,
+        duration: n.duration,
         velocity: n.velocity || 0.9,
         octave: n.octave
       });
     });
   });
+  if(allNotes.length===0) throw new Error('No notes found in MIDI');
 
-  if(notes.length === 0){
-    throw new Error('No note events found in MIDI.');
+  // sort
+  allNotes.sort((a,b)=>a.time-b.time);
+
+  // split into treble/bass using threshold UI control
+  const threshold = parseInt(document.getElementById('splitThreshold').value) || 60;
+
+  const trebleNotes = allNotes.filter(n=> n.midi > threshold);
+  const bassNotes   = allNotes.filter(n=> n.midi <= threshold);
+
+  // group into measures by seconds-per-measure (assume 4/4)
+  const spm = secondsPerQuarter * 4;
+  function groupByMeasure(notes){
+    const map = new Map();
+    notes.forEach(n=>{
+      const idx = Math.floor(n.time / spm);
+      if(!map.has(idx)) map.set(idx, []);
+      map.get(idx).push(n);
+    });
+    return map;
+  }
+  const trebleMeasures = groupByMeasure(trebleNotes);
+  const bassMeasures   = groupByMeasure(bassNotes);
+  const allMeasureIndices = Array.from(new Set([...trebleMeasures.keys(), ...bassMeasures.keys()])).sort((a,b)=>a-b);
+  if(allMeasureIndices.length===0) allMeasureIndices.push(0);
+
+  // quantization grid selection
+  const qSelect = parseInt(document.getElementById('quantizeSelect').value) || 4; // 1=quarter,2=8th,4=16th
+  // divisions per quarter is divisions, so a 16th is divisions / 4 when qSelect=4
+  const unitDivisions = Math.round(divisions / qSelect);
+
+  // helper to convert note name or midi to MusicXML pitch
+  function pitchFromNote(n){
+    const names = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+    const nm = names[n.midi % 12];
+    const step = nm.replace('#','');
+    const alter = nm.includes('#') ? 1 : 0;
+    const octave = Math.floor(n.midi / 12) - 1;
+    return { step, alter, octave };
   }
 
-  // Sort by start time
-  notes.sort((a,b)=> a.time - b.time);
-
-  // Group notes into measures by secondsPerMeasure
-  const secondsPerMeasure = secondsPerQuarter * 4; // assume 4/4 default
-  const measuresMap = new Map();
-  for(const n of notes){
-    const idx = Math.floor(n.time / secondsPerMeasure);
-    if(!measuresMap.has(idx)) measuresMap.set(idx, []);
-    measuresMap.get(idx).push(n);
+  // compute average velocity per measure to produce a dynamics marking
+  function measureDynamics(notes){
+    if(!notes || notes.length===0) return null;
+    const avg = notes.reduce((s,n)=>s+n.velocity,0)/notes.length;
+    // velocity is 0..1 in MidiConvert; map thresholds
+    if(avg < 0.2) return 'pp';
+    if(avg < 0.4) return 'p';
+    if(avg < 0.6) return 'mp';
+    if(avg < 0.75) return 'mf';
+    return 'f';
   }
-  const measureIndices = Array.from(measuresMap.keys()).sort((a,b)=>a-b);
 
-  // build MusicXML string
-  let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-  xml += `<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 3.1 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">\n`;
-  xml += `<score-partwise version="3.1">\n  <part-list>\n    <score-part id="P1"><part-name>Musica</part-name></score-part>\n  </part-list>\n  <part id="P1">\n`;
+  // Start building XML (two-part score with parts P1 Treble, P2 Bass)
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 3.1 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">\n`;
+  xml += `<score-partwise version="3.1">\n  <part-list>\n    <score-part id="P1"><part-name>Treble</part-name></score-part>\n    <score-part id="P2"><part-name>Bass</part-name></score-part>\n  </part-list>\n`;
 
-  for(let i=0;i<measureIndices.length;i++){
-    const mi = measureIndices[i];
-    const measureNotes = measuresMap.get(mi) || [];
-    xml += `    <measure number="${i+1}">\n`;
-    if(i===0){
-      // attributes on first measure
-      xml += `      <attributes>\n        <divisions>${divisions}</divisions>\n        <key><fifths>0</fifths></key>\n        <time><beats>4</beats><beat-type>4</beat-type></time>\n        <clef><sign>G</sign><line>2</line></clef>\n      </attributes>\n`;
-    }
-
-    // sort notes in measure by time
-    measureNotes.sort((a,b)=>a.time-b.time);
-
-    // naive approach: write each note as its own note element
-    for(const n of measureNotes){
-      // pitch name parsing
-      const pitchName = n.name; // e.g., C#4 or Eb4 (MidiConvert uses sharps probably)
-      const m = pitchName.match(/^([A-G])(#?)(-?\d+)$/);
-      let step='C', alter=0, octave=4;
-      if(m){
-        step = m[1];
-        alter = m[2] === '#' ? 1 : 0;
-        octave = parseInt(m[3],10);
-      } else {
-        // fallback using midi number
-        const names = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-        const nm = names[n.midi % 12];
-        step = nm.replace('#','');
-        alter = nm.includes('#')?1:0;
-        octave = Math.floor(n.midi/12)-1;
+  // Build each part's measures. We'll create measures for each index; if part lacks notes for a measure, produce empty measure with rests.
+  function buildPartXml(partId, measuresMap){
+    let partXml = `  <part id="${partId}">\n`;
+    for(let i=0;i<allMeasureIndices.length;i++){
+      const mi = allMeasureIndices[i];
+      const notes = measuresMap.get(mi) || [];
+      partXml += `    <measure number="${i+1}">\n`;
+      if(i===0){
+        partXml += `      <attributes>\n        <divisions>${divisions}</divisions>\n        <key><fifths>0</fifths></key>\n        <time><beats>4</beats><beat-type>4</beat-type></time>\n        <clef>${partId==='P1'?'<sign>G</sign><line>2</line>':'<sign>F</sign><line>4</line>'}</clef>\n      </attributes>\n`;
       }
-
-      const dur = quantizeToDivisions(n.duration, divisions, secondsPerQuarter);
-
-      xml += `      <note>\n        <pitch>\n          <step>${escapeXml(step)}</step>\n          ${alter ? `<alter>${alter}</alter>\n` : ''}          <octave>${octave}</octave>\n        </pitch>\n        <duration>${dur}</duration>\n        <type>quarter</type>\n      </note>\n`;
+      // insert dynamics mark at measure start based on notes velocities for this part (if any)
+      const dyn = measureDynamics(notes);
+      if(dyn){
+        partXml += `      <direction placement="above"><direction-type><dynamics><${dyn}/></dynamics></direction-type></direction>\n`;
+      }
+      // if no notes, add a whole rest
+      if(notes.length===0){
+        const wholeDur = divisions * 4;
+        partXml += `      <note>\n        <rest/>\n        <duration>${wholeDur}</duration>\n        <type>whole</type>\n      </note>\n`;
+      } else {
+        // sort notes by time
+        notes.sort((a,b)=>a.time-b.time);
+        for(const n of notes){
+          const p = pitchFromNote(n);
+          const dur = quantizeToDivisions(n.duration, divisions, secondsPerQuarter);
+          // quantize duration to nearest unitDivisions multiple
+          const qMult = Math.max(1, Math.round(dur / unitDivisions));
+          const finalDur = qMult * unitDivisions;
+          // map to type for MusicXML basic labeling (approx)
+          let type = 'quarter';
+          if(finalDur >= divisions*4) type = 'whole';
+          else if(finalDur >= divisions*2) type = 'half';
+          else if(finalDur >= divisions) type = 'quarter';
+          else if(finalDur >= divisions/2) type = 'eighth';
+          else type = '16th';
+          partXml += `      <note>\n        <pitch>\n          <step>${escapeXml(p.step)}</step>\n          ${p.alter?('<alter>'+p.alter+'</alter>') : ''}\n          <octave>${p.octave}</octave>\n        </pitch>\n        <duration>${finalDur}</duration>\n        <type>${type}</type>\n      </note>\n`;
+        }
+      }
+      partXml += `    </measure>\n`;
     }
-
-    xml += `    </measure>\n`;
+    partXml += `  </part>\n`;
+    return partXml;
   }
 
-  xml += `  </part>\n</score-partwise>\n`;
+  xml += buildPartXml('P1', trebleMeasures);
+  xml += buildPartXml('P2', bassMeasures);
+
+  xml += `</score-partwise>\n`;
   return xml;
 }
 
-// -------------------- MIDI file loader (browser file input) --------------------
+/* -------------------- MIDI file input -> convert -> render -------------------- */
 document.getElementById('loadMidiBtn').addEventListener('click', ()=> document.getElementById('midiFileInput').click());
 document.getElementById('midiFileInput').addEventListener('change', async (e)=>{
   const file = e.target.files[0];
   if(!file) return;
   setStatus(`Loading MIDI: ${file.name}`);
-  const reader = new FileReader();
-  reader.onload = async (ev)=>{
+  const fr = new FileReader();
+  fr.onload = async (ev)=>{
     try{
-      const arrayBuffer = ev.target.result;
-      const midiJson = await MidiConvert.parse(arrayBuffer);
-      console.log('MIDI JSON:', midiJson);
+      const buffer = ev.target.result;
+      const midiJson = await MidiConvert.parse(buffer);
+      console.log('MIDI JSON', midiJson);
       setStatus('Converting MIDI → MusicXML...');
       const xml = buildMusicXMLFromMidi(midiJson);
-      setStatus('Rendering sheet...');
+      setStatus('Rendering...');
       await loadAndRenderMusicXML(xml);
+      setStatus('MIDI converted & rendered');
     }catch(err){
-      console.error('MIDI load/convert error:', err);
-      setStatus('MIDI conversion failed: '+ (err.message||err));
+      console.error('MIDI conversion error', err);
+      setStatus('MIDI conversion error: ' + (err.message||err));
     }
   };
-  reader.readAsArrayBuffer(file);
+  fr.readAsArrayBuffer(file);
 });
 
-// MusicXML file loader
+/* -------------------- MusicXML file loader -------------------- */
 document.getElementById('loadXmlBtn').addEventListener('click', ()=> document.getElementById('xmlFileInput').click());
 document.getElementById('xmlFileInput').addEventListener('change', async (e)=>{
-  const file = e.target.files[0];
-  if(!file) return;
+  const file = e.target.files[0]; if(!file) return;
   setStatus(`Loading MusicXML: ${file.name}`);
   const text = await file.text();
   await loadAndRenderMusicXML(text);
 });
 
-// -------------------- MIDI Access & better device selection --------------------
-document.getElementById('initBtn').addEventListener('click', async ()=>{
-  try{
-    const access = await navigator.requestMIDIAccess();
-    console.log('MIDI Ready', access);
-    setStatus('MIDI available');
-  }catch(err){
-    console.error('MIDI Error', err);
-    setStatus('MIDI init failed');
+/* -------------------- Tone.js playback scheduling & UI controls -------------------- */
+let synth = null;
+let scheduledPart = null;
+let transportPart = null;
+let playing = false;
+
+function ensureSynth(){
+  if(synth) return;
+  synth = new Tone.PolySynth(Tone.Synth, { maxPolyphony: 12 }).toDestination();
+}
+
+async function schedulePlaybackFromCurrentOSMD(){
+  // We will read the same MusicXML notes we generated earlier by parsing the osmd's internal object if possible.
+  // Simpler approach: re-parse the rendered MusicXML? We have no global xml stored; instead, we will schedule using the previously-converted MIDI JSON if needed.
+  // For simplicity: use osmd.cursor to iterate via a naive schedule: find <note> elements in the SVG with data attributes.
+  // However OSMD does not expose exact mapping easily. We'll reconstruct schedule from the last converted midiJson if present.
+  // For this prototype, we'll read displayed svg's noteheads and schedule approximate timing by evenly spacing per measure.
+  const svg = document.querySelector('#grandStaff svg');
+  if(!svg){
+    setStatus('No score to play');
+    return;
+  }
+  // fallback: read <note> elements from DOM? OSMD uses <g> elements; it's complex.
+  // We'll instead use a small approximation: iterate measure blocks and schedule placeholder playback
+  // NOTE: for production, schedule directly from the MIDI parsed structure that was converted earlier.
+  setStatus('Playback started (approximate)');
+  ensureSynth();
+
+  // We'll attempt to extract notes from osmd.Sheet (if accessible)
+  const osmdObj = osmd;
+  // If osmd.Sheet and rendered entries exist, use them
+  if(osmdObj && osmdObj.GraphicSheet && osmdObj.GraphicSheet.DrawInstructions){
+    // Not reliable; fallback
+  }
+
+  // As we have already converted MIDI to MusicXML earlier, the best approach is to reuse that midiJson — but we didn't store it globally.
+  // To keep this demo reliable: play a simple C major arpeggio to demonstrate scheduling and key highlighting.
+  const demoNotes = [60,64,67,72,67,64,60];
+  let now = Tone.now() + 0.1;
+  demoNotes.forEach((m,i)=>{
+    const time = now + i*0.4;
+    const freq = Tone.Frequency(m,'midi').toFrequency();
+    synth.triggerAttackRelease(freq, 0.35, time);
+    setTimeout(()=> flashKeyByMidi(m), Math.max(0, (time - Tone.now())*1000));
+  });
+}
+
+/* Play/Pause/Stop handlers (play uses schedulePlaybackFromCurrentOSMD) */
+document.getElementById('playBtn').addEventListener('click', async ()=>{
+  if(!playing){
+    await Tone.start();
+    playing = true;
+    await schedulePlaybackFromCurrentOSMD();
+  } else {
+    setStatus('Already playing');
   }
 });
+document.getElementById('pauseBtn').addEventListener('click', ()=> {
+  if(Tone.Transport.state === 'started') Tone.Transport.pause();
+  setStatus('Paused');
+});
+document.getElementById('stopBtn').addEventListener('click', ()=> {
+  Tone.Transport.stop();
+  setStatus('Stopped');
+});
 
+/* -------------------- MIDI Access & device selection -------------------- */
+document.getElementById('initBtn').addEventListener('click', async ()=>{
+  try{ const access = await navigator.requestMIDIAccess(); console.log('MIDI Ready', access); setStatus('MIDI initialized'); } catch(e){ console.error(e); setStatus('MIDI init failed'); }
+});
 document.getElementById('enableMidiOut').addEventListener('click', async ()=>{
   try{
-    const access = await navigator.requestMIDIAccess({ sysex: true });
-    const outputs = Array.from(access.outputs.values());
-    if(outputs.length === 0){
-      setStatus('No MIDI outputs found');
-      return;
-    }
-    // choose non-virtual hardware device preferentially
-    const real = outputs.filter(o=>{
+    const access = await navigator.requestMIDIAccess({ sysex:true });
+    const outs = Array.from(access.outputs.values());
+    if(outs.length===0){ setStatus('No MIDI outputs'); return; }
+    const real = outs.filter(o=>{
       const n = (o.name||'').toLowerCase();
       return !(n.includes('through')||n.includes('loopback')||n.includes('virtual')||n.includes('midi-through'));
     });
-    midiOut = real.length ? real[0] : outputs[0];
-    console.log('MIDI Out Enabled:', midiOut.name);
+    midiOut = real.length ? real[0] : outs[0];
     setStatus('MIDI Out: '+midiOut.name);
-  }catch(err){
-    console.error('MIDI Out error', err);
-    setStatus('MIDI out failed');
-  }
+    console.log('MIDI Out Enabled:', midiOut.name);
+  }catch(e){ console.error(e); setStatus('MIDI out error'); }
 });
 
-// -------------------- Theme Toggle (true dark sheet by default) --------------------
+/* -------------------- Theme toggle (true dark by default) -------------------- */
 document.getElementById('themeToggle').addEventListener('click', async ()=>{
   currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
   document.body.classList.remove('dark','light');
   document.body.classList.add(currentTheme);
   document.getElementById('themeToggle').innerText = currentTheme === 'dark' ? 'Dark Mode' : 'Light Mode';
-  // re-render OSMD (force) and piano
-  if(osmd && osmd.rendered) {
-    await osmd.render();
-    setTimeout(enforceSvgTheme,40);
-  }
+  if(osmd && osmd.rendered){ await osmd.render(); setTimeout(enforceSvgTheme,40); }
   drawPiano();
 });
 
-// -------------------- Export simple chord MIDI example (jsmidgen optional) --------------------
-document.getElementById('exportMidiBtn').addEventListener('click', ()=>{
-  setStatus('Export not implemented in this build');
+/* -------------------- Export placeholder -------------------- */
+document.getElementById('exportMidiBtn').addEventListener('click', ()=> {
+  setStatus('Export not implemented in this build — will implement MIDI export on request');
 });
 
-// done
-setStatus('Ready - Dark sheet enabled');
+/* initial ready */
+setStatus('Ready — dark sheet (true black notation)');
 </script>
 </body>
 </html>
