@@ -1,4 +1,4 @@
-![Version](https://img.shields.io/github/v/release/:user/:repo)
+![Version](https://img.shields.io/github/v/release/bileckme/musica)
 ![Status](https://img.shields.io/badge/status-active-success)
 ![Build](https://img.shields.io/badge/build-passing-brightgreen)
 ![Platform](https://img.shields.io/badge/platform-web-orange)
