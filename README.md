@@ -17,7 +17,51 @@ Musica combines the elegance of traditional music notation with cutting-edge web
 
 ---
 
-## ✨ Features
+## 🚀 Features
+
+### 🎼 Notation & Staff Engine
+- Grand Staff Previewer (Treble & Bass)
+- MuseScore-compatible MusicXML foundations
+- Chord symbols shown above melody line
+- Interactive notes with highlight-on-play
+
+### 🎹 Piano Interface
+- Full 88-key digital keyboard
+- Key highlights synchronized with staff playback
+- Supports MIDI input devices
+
+### 🎵 Sound & Playback Engine
+- Low-latency sound engine
+- Individual note and chord previews
+- Smooth staff-to-keyboard playback flow
+
+### 🔍 Music Intelligence
+- Jazz-enhanced chord detection
+- Chord Previewer with accurate voicing playback
+- Real-time interpretation of RH input
+
+### 🎛 MIDI Engine
+- MIDI In/Out device support
+- Event filtering (velocity, note on/off)
+- External synth support
+
+### 🖥 UI & Experience
+- Fullscreen Mode
+- Clean, lightweight layout
+- SMuFL Bravura engraving fonts
+
+---
+
+## 🔮 Future Improvements
+- MIDI loading into staffs with automatic transcription
+- Export to `.midi` and `.musicxml` formats
+- Multi-track staff rendering
+- Quantization and rhythm analysis
+- Better MuseScore interoperability
+
+---
+
+## ✨ Road Map
 
 ### 🎹 **Interactive Piano Interface**
 - Virtual piano that can be played via keyboard or mouse.
