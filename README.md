@@ -1,3 +1,10 @@
+![Version](https://img.shields.io/badge/version-0.1.2-stable-blue)
+![Status](https://img.shields.io/badge/status-active-success)
+![Build](https://img.shields.io/badge/build-passing-brightgreen)
+![Platform](https://img.shields.io/badge/platform-web-orange)
+![MIDI](https://img.shields.io/badge/MIDI-supported-yellow)
+![License](https://img.shields.io/badge/license-MIT-lightgrey)
+
 # 🎵 Musica App
 
 **Musica** is a modern piano and sheet music web application that bridges classical performance and digital innovation. It allows musicians, composers, and students to explore, compose, visualize, and share their musical ideas interactively.
