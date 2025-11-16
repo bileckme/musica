@@ -3,40 +3,39 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Musica — Unified Prototype</title>
+<title>Musica — Unified Prototype (Fixed)</title>
 <link rel="shortcut icon" href="favicon.png" type="image/x-icon" />
 <!-- Libraries -->
 <script src="https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.7.6/build/opensheetmusicdisplay.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/midiconvert@0.4.0/build/MidiConvert.js"></script>
 
 <style>
-  *{box-sizing:border-box}
-  html,body{height:100%;margin:0;background:#0b0b0b;color:#fff;font-family:Inter, Arial, sans-serif;overflow:hidden}
-  #main{height:calc(100vh - 12vh);overflow:auto;padding:18px}
-  #controls{background:#161618;padding:12px;border-radius:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-  button,input,select{padding:8px 10px;border-radius:6px;border:1px solid #222;background:#111;color:#fff;cursor:pointer}
-  input[type="file"]{display:none}
-  label{color:#bbb;font-size:13px}
-  #grandStaffWrap{margin-top:12px;border-radius:8px;overflow:hidden}
-  #grandStaff{width:100%;min-height:420px;border-radius:6px;overflow:hidden;background:transparent}
-  #pianoDock{position:fixed;left:0;right:0;bottom:0;height:12vh;background:#000;border-top:3px solid #111;display:flex;align-items:center;justify-content:center}
-  #pianoCanvas{width:100%;height:100%;display:block;touch-action:none}
-  #status{color:#9aa;font-size:13px;margin-left:auto}
-  .small{font-size:13px;color:#9aa}
-  .btn-compact{padding:6px 8px;font-size:13px} 
-  /* OSMD dark/light forced styles are applied by JS after render */
-  body.light #grandStaff svg { background:#fff !important; }
-  body.light #grandStaff svg * { fill: #000 !important; stroke: #000 !important; }
-  body.light #grandStaff svg text { fill: #000 !important; }
-  body.dark #grandStaff svg { background:#000 !important; }
-  body.dark #grandStaff svg * { fill: #fff !important; stroke: #fff !important; }
-  body.dark #grandStaff svg text { fill: #fff !important; }
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:#0b0b0b;color:#fff;font-family:Inter, Arial, sans-serif;overflow:hidden}
+#main{height:calc(100vh - 12vh);overflow:auto;padding:18px}
+#controls{background:#161618;padding:12px;border-radius:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+button,input,select{padding:8px 10px;border-radius:6px;border:1px solid #222;background:#111;color:#fff;cursor:pointer}
+input[type="file"]{display:none}
+label{color:#bbb;font-size:13px}
+#grandStaffWrap{margin-top:12px;border-radius:8px;overflow:hidden}
+#grandStaff{width:100%;min-height:420px;border-radius:6px;overflow:hidden;background:transparent}
+#pianoDock{position:fixed;left:0;right:0;bottom:0;height:12vh;background:#000;border-top:3px solid #111;display:flex;align-items:center;justify-content:center}
+#pianoCanvas{width:100%;height:100%;display:block;touch-action:none}
+#status{color:#9aa;font-size:13px;margin-left:auto}
+.small{font-size:13px;color:#9aa}
+.btn-compact{padding:6px 8px;font-size:13px} 
+body.light #grandStaff svg { background:#fff !important; }
+body.light #grandStaff svg * { fill: #000 !important; stroke: #000 !important; }
+body.light #grandStaff svg text { fill: #000 !important; }
+body.dark #grandStaff svg { background:#000 !important; }
+body.dark #grandStaff svg * { fill: #fff !important; stroke: #fff !important; }
+body.dark #grandStaff svg text { fill: #fff !important; }
 </style>
 </head>
 <body class="dark">
 
 <div id="main">
-  <div id="controls">
+<div id="controls">
     <input id="anyFileInput" type="file" accept=".mid,.midi,.xml,.musicxml,.mxl" />
     <button id="loadAnyBtn">Load File</button>
 
@@ -44,11 +43,11 @@
     <label class="small"><input id="sustainCheck" type="checkbox"/> Sustain</label>
 
     <label class="small">Quantize:
-      <select id="quantizeSelect" class="btn-compact">
+    <select id="quantizeSelect" class="btn-compact">
         <option value="1">Quarter</option>
         <option value="2">Eighth</option>
         <option value="4" selected>Sixteenth</option>
-      </select>
+    </select>
     </label>
 
     <label class="small">Split threshold: <input id="splitThreshold" type="number" value="60" style="width:68px" /></label>
@@ -64,342 +63,126 @@
 
     <button id="themeToggle">Dark Mode</button>
     <div id="status">Ready</div>
-  </div>
+</div>
 
-  <div id="grandStaffWrap">
+<div id="grandStaffWrap">
     <div id="grandStaff"></div>
-  </div>
+</div>
 </div>
 
 <div id="pianoDock">
-  <canvas id="pianoCanvas" aria-label="88-key piano"></canvas>
+<canvas id="pianoCanvas" aria-label="88-key piano"></canvas>
 </div>
 
-<!-- RealPianoLocal Implementation (self-contained) -->
-<script>
-// RealPianoLocal - Self-contained piano sample player (kept as in original upload)
-window.RealPianoLocal = {
-    audioCtx: null,
-    buffers: {},
-    loaded: false,
-    reverbNode: null,
-    sustainEnabled: false,
-    activeNotes: new Map(),
-    
-    init: async function(options = {}) {
-        try {
-            console.log('Initializing RealPianoLocal...');
-            
-            // Create audio context
-            this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            
-            // Initialize reverb if requested
-            if (options.useReverb) {
-                await this.initReverb();
-            }
-            
-            // For now, we'll use a simple tone generator as fallback
-            // In a real implementation, you would load actual piano samples
-            this.loaded = true;
-            console.log('RealPianoLocal initialized (using tone generator fallback)');
-            
-            if (options.onprogress) {
-                options.onprogress(1, 1); // Simulate 100% loaded
-            }
-            
-            return this;
-            
-        } catch (error) {
-            console.error('RealPianoLocal init error:', error);
-            throw error;
-        }
-    },
-    
-    initReverb: async function() {
-        try {
-            // Create a simple reverb using ConvolverNode
-            this.reverbNode = this.audioCtx.createConvolver();
-            
-            // Create impulse response for reverb
-            const sampleRate = this.audioCtx.sampleRate;
-            const length = sampleRate * 2;
-            const impulse = this.audioCtx.createBuffer(2, length, sampleRate);
-            const left = impulse.getChannelData(0);
-            const right = impulse.getChannelData(1);
-            
-            for (let i = 0; i < length; i++) {
-                left[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2);
-                right[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / length, 2);
-            }
-            
-            this.reverbNode.buffer = impulse;
-            console.log('Reverb initialized');
-            
-        } catch (error) {
-            console.warn('Reverb initialization failed:', error);
-        }
-    },
-    
-    playNote: function(noteName, velocity = 0.9, duration = 1.5) {
-        if (!this.loaded || !this.audioCtx) {
-            console.warn('RealPianoLocal not ready');
-            return;
-        }
-        
-        try {
-            // Convert note name to frequency
-            const frequency = this.noteNameToFrequency(noteName);
-            
-            // Create oscillator for this note
-            const oscillator = this.audioCtx.createOscillator();
-            const gainNode = this.audioCtx.createGain();
-            
-            oscillator.connect(gainNode);
-            
-            // Route through reverb if available
-            if (this.reverbNode) {
-                const dryGain = this.audioCtx.createGain();
-                const wetGain = this.audioCtx.createGain();
-                
-                gainNode.connect(dryGain);
-                gainNode.connect(this.reverbNode);
-                this.reverbNode.connect(wetGain);
-                
-                dryGain.connect(this.audioCtx.destination);
-                wetGain.connect(this.audioCtx.destination);
-                
-                // Set reverb mix (30% wet)
-                dryGain.gain.value = 0.7;
-                wetGain.gain.value = 0.3;
-            } else {
-                gainNode.connect(this.audioCtx.destination);
-            }
-            
-            // Configure oscillator
-            oscillator.type = 'triangle'; // More piano-like than sine
-            oscillator.frequency.setValueAtTime(frequency, this.audioCtx.currentTime);
-            
-            // Configure volume envelope
-            const now = this.audioCtx.currentTime;
-            gainNode.gain.setValueAtTime(0, now);
-            gainNode.gain.linearRampToValueAtTime(velocity * 0.3, now + 0.02); // Quick attack
-            gainNode.gain.exponentialRampToValueAtTime(velocity * 0.1, now + duration * 0.3); // Decay
-            gainNode.gain.exponentialRampToValueAtTime(0.001, now + duration); // Release
-            
-            // Start and stop oscillator
-            oscillator.start(now);
-            
-            if (!this.sustainEnabled) {
-                oscillator.stop(now + duration);
-            }
-            
-            // Store reference to active note
-            const noteId = noteName + '-' + Date.now();
-            this.activeNotes.set(noteId, { oscillator, gainNode, noteName });
-            
-            // Auto-cleanup if not using sustain
-            if (!this.sustainEnabled) {
-                setTimeout(() => {
-                    this.stopNote(noteName);
-                }, duration * 1000);
-            }
-            
-            console.log(`Playing note: ${noteName} (${frequency.toFixed(2)} Hz)`);
-            
-        } catch (error) {
-            console.error('Error playing note:', error);
-        }
-    },
-    
-    stopNote: function(noteName = null) {
-        if (noteName) {
-            // Stop specific note
-            for (const [id, note] of this.activeNotes.entries()) {
-                if (note.noteName === noteName) {
-                    try {
-                        note.gainNode.gain.cancelScheduledValues(this.audioCtx.currentTime);
-                        note.gainNode.gain.setValueAtTime(note.gainNode.gain.value, this.audioCtx.currentTime);
-                        note.gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + 0.1);
-                        note.oscillator.stop(this.audioCtx.currentTime + 0.1);
-                    } catch (e) {
-                        // Ignore errors if oscillator already stopped
-                    }
-                    this.activeNotes.delete(id);
-                }
-            }
-        } else {
-            // Stop all notes
-            for (const [id, note] of this.activeNotes.entries()) {
-                try {
-                    note.gainNode.gain.cancelScheduledValues(this.audioCtx.currentTime);
-                    note.gainNode.gain.setValueAtTime(note.gainNode.gain.value, this.audioCtx.currentTime);
-                    note.gainNode.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + 0.1);
-                    note.oscillator.stop(this.audioCtx.currentTime + 0.1);
-                } catch (e) {
-                    // Ignore errors if oscillator already stopped
-                }
-            }
-            this.activeNotes.clear();
-        }
-    },
-    
-    setSustainEnabled: function(enabled) {
-        this.sustainEnabled = enabled;
-        console.log(`Sustain ${enabled ? 'enabled' : 'disabled'}`);
-        
-        // If sustain is being disabled, stop all sustained notes
-        if (!enabled) {
-            this.stopNote();
-        }
-    },
-    
-    noteNameToFrequency: function(noteName) {
-        // Convert note name (e.g., "C4", "A#5") to frequency
-        const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-        const match = noteName.match(/^([A-G]#?)(-?\d+)$/);
-        
-        if (!match) {
-            console.warn('Invalid note name:', noteName);
-            return 440; // Fallback to A4
-        }
-        
-        const note = match[1];
-        const octave = parseInt(match[2]);
-        const noteIndex = noteNames.indexOf(note);
-        
-        if (noteIndex === -1) {
-            console.warn('Unknown note:', note);
-            return 440;
-        }
-        
-        // Calculate MIDI note number
-        const midiNote = (octave + 1) * 12 + noteIndex;
-        
-        // Convert to frequency: 440 * 2^((midiNote - 69) / 12)
-        return 440 * Math.pow(2, (midiNote - 69) / 12);
-    },
-    
-    // Utility method to check if samples are loaded
-    isSamplesLoaded: function() {
-        return this.loaded && Object.keys(this.buffers).length > 0;
-    }
-};
-</script>
+<!-- Use the external RealPianoLocal script provided in assets -->
+<script src="assets/js/real-piano-local.js"></script>
 
 <script>
 /* =========================
-   Globals & State
-   ========================= */
+Globals & State
+========================= */
 const statusEl = document.getElementById('status');
 const PIANO = { FIRST:21, LAST:108, keyMap:{} };
 let osmd = null;
 let midiOut = null;
 let currentTheme = 'dark';
 let xmlTextLast = null;
-let xmlEvents = [];   // {midi, time, duration, velocity, id}
+let xmlEvents = [];   // {midi, time, duration, velocity, id, measure, staff, voice}
 let bpmGlobal = 120;
 let playing = false;
 let scheduledTimers = [];
-let nextEventIndex = 0;
-let playStartTime = 0;
-let playBase = 0;
+let playCursorIdx = 0;
+let playStartAudioTime = 0; // audioCtx time where playback started
+let playBase = 0; // earliest event time used as 0 offset
 let soundEngine = 'none'; // 'real' or 'none'
-let graphicalNoteMap = new Map(); // map midi-event-id -> [graphicalNoteObjects]
+let graphicalNoteMap = new Map(); // map key -> [graphicalNoteObjects]
 let useGraphicalMap = false;
 
-/* -------------------- small helpers -------------------- */
 function setStatus(t){ statusEl.textContent = t; }
 function escapeXml(s) {
-  if (typeof s !== 'string') return s;
-  return s.replace(/[<>&'"]/g, c => 
-    ({'<':'&lt;','>':'&gt;','&':'&amp;',"'":"&apos;",'"':'&quot;'}[c])
-  );
+if (typeof s !== 'string') return s;
+return s.replace(/[<>&'\"]/g, c => ({'<':'&lt;','>':'&gt;','&':'&amp;',"'":"&apos;",'\"':'&quot;'}[c]));
 }
 function midiToNoteName(m){ const N=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B']; const step=N[m%12]; const oct=Math.floor(m/12)-1; return `${step}${oct}`; }
-function nowSeconds(){ return performance.now()/1000; }
 
 /* =========================
-   OSMD init & theme enforcement
-   ========================= */
+OSMD init & theme enforcement
+========================= */
 function initOSMD(){
-  osmd = new opensheetmusicdisplay.OpenSheetMusicDisplay('grandStaff', { autoResize:true, autoOpenUrl:false, backend:'svg' });
+osmd = new opensheetmusicdisplay.OpenSheetMusicDisplay('grandStaff', { autoResize:true, autoOpenUrl:false, backend:'svg' });
 }
 initOSMD();
 
 function enforceSvgTheme(){
-  const svg = document.querySelector('#grandStaff svg');
-  if(!svg) return;
-  if(currentTheme==='dark'){
+const svg = document.querySelector('#grandStaff svg');
+if(!svg) return;
+if(currentTheme==='dark'){
     svg.style.background = '#000';
-    svg.querySelectorAll('*').forEach(el=>{
-      try{ el.style.fill = '#fff'; el.style.stroke = '#fff'; el.style.color = '#fff'; }catch(e){}
-    });
-  } else {
+    svg.querySelectorAll('*').forEach(el=>{ try{ el.style.fill = '#fff'; el.style.stroke = '#fff'; el.style.color = '#fff'; }catch(e){} });
+} else {
     svg.style.background = '#fff';
-    svg.querySelectorAll('*').forEach(el=>{
-      try{ el.style.fill = '#000'; el.style.stroke = '#000'; el.style.color = '#000'; }catch(e){}
-    });
-  }
+    svg.querySelectorAll('*').forEach(el=>{ try{ el.style.fill = '#000'; el.style.stroke = '#000'; el.style.color = '#000'; }catch(e){} });
+}
 }
 
 /* =========================
-   Piano drawing & highlights
-   ========================= */
+Piano drawing & highlights (unchanged)
+========================= */
 function isWhiteMidi(n){
-  const mod = n % 12;
-  return [0,2,4,5,7,9,11].includes(mod);
+const mod = n % 12;
+return [0,2,4,5,7,9,11].includes(mod);
 }
 
 function drawPiano() {
-  const canvas = document.getElementById('pianoCanvas');
-  const ctx = canvas.getContext('2d');
-  const cssW = canvas.clientWidth || canvas.offsetWidth;
-  const cssH = canvas.clientHeight || canvas.offsetHeight;
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = Math.round(cssW * dpr);
-  canvas.height = Math.round(cssH * dpr);
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+const canvas = document.getElementById('pianoCanvas');
+const ctx = canvas.getContext('2d');
+const cssW = canvas.clientWidth || canvas.offsetWidth;
+const cssH = canvas.clientHeight || canvas.offsetHeight;
+const dpr = window.devicePixelRatio || 1;
+canvas.width = Math.round(cssW * dpr);
+canvas.height = Math.round(cssH * dpr);
+ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-  // Clear canvas
-  ctx.fillStyle = (currentTheme === 'dark') ? '#000' : '#fff';
-  ctx.fillRect(0, 0, cssW, cssH);
+// Clear canvas
+ctx.fillStyle = (currentTheme === 'dark') ? '#000' : '#fff';
+ctx.fillRect(0, 0, cssW, cssH);
 
-  // Calculate dimensions
-  let whiteCount = 0;
-  for (let n = PIANO.FIRST; n <= PIANO.LAST; n++) 
+// Calculate dimensions
+let whiteCount = 0;
+for (let n = PIANO.FIRST; n <= PIANO.LAST; n++) 
     if (isWhiteMidi(n)) whiteCount++;
-  
-  const whiteW = cssW / whiteCount;
-  const whiteH = cssH;
-  const blackW = whiteW * 0.65;
-  const blackH = cssH * 0.65;
 
-  PIANO.keyMap = {};
-  let whiteIndex = 0;
+const whiteW = cssW / whiteCount;
+const whiteH = cssH;
+const blackW = whiteW * 0.65;
+const blackH = cssH * 0.65;
 
-  // Draw white keys first (background layer)
-  for (let n = PIANO.FIRST; n <= PIANO.LAST; n++) {
+PIANO.keyMap = {};
+let whiteIndex = 0;
+
+// Draw white keys first (background layer)
+for (let n = PIANO.FIRST; n <= PIANO.LAST; n++) {
     if (isWhiteMidi(n)) {
-      const x = Math.round(whiteIndex * whiteW);
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(x, 0, whiteW, whiteH);
-      ctx.strokeStyle = '#999';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(x + 0.5, 0.5, whiteW - 1, whiteH - 1);
-      PIANO.keyMap[n] = { x, w: whiteW, h: whiteH, black: false };
-      whiteIndex++;
+    const x = Math.round(whiteIndex * whiteW);
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(x, 0, whiteW, whiteH);
+    ctx.strokeStyle = '#999';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x + 0.5, 0.5, whiteW - 1, whiteH - 1);
+    PIANO.keyMap[n] = { x, w: whiteW, h: whiteH, black: false };
+    whiteIndex++;
     }
-  }
+}
 
-  // Draw black keys on top (foreground layer)
-  for (let n = PIANO.FIRST; n <= PIANO.LAST; n++) {
+// Draw black keys on top (foreground layer)
+for (let n = PIANO.FIRST; n <= PIANO.LAST; n++) {
     const mod = n % 12;
     if ([1, 3, 6, 8, 10].includes(mod)) {
-      let leftWhite = n - 1;
-      while (leftWhite >= PIANO.FIRST && !isWhiteMidi(leftWhite)) 
+    let leftWhite = n - 1;
+    while (leftWhite >= PIANO.FIRST && !isWhiteMidi(leftWhite)) 
         leftWhite--;
-      
-      if (PIANO.keyMap[leftWhite]) {
+    
+    if (PIANO.keyMap[leftWhite]) {
         const x = Math.round(PIANO.keyMap[leftWhite].x + whiteW - blackW / 2);
         ctx.fillStyle = '#000';
         ctx.fillRect(x, 0, blackW, blackH);
@@ -407,60 +190,50 @@ function drawPiano() {
         ctx.lineWidth = 1;
         ctx.strokeRect(x + 0.5, 0.5, blackW - 1, blackH - 1);
         PIANO.keyMap[n] = { x, w: blackW, h: blackH, black: true };
-      }
     }
-  }
+    }
+}
 }
 
-/* Highlight layering */
 let activeHighlights = new Set();
-
-function highlightKey(midi) {
-  activeHighlights.add(midi);
-  redrawPianoWithHighlights();
-}
-
-function removeHighlight(midi) {
-  activeHighlights.delete(midi);
-  redrawPianoWithHighlights();
-}
-
+function highlightKey(midi) { activeHighlights.add(midi); redrawPianoWithHighlights(); }
+function removeHighlight(midi) { activeHighlights.delete(midi); redrawPianoWithHighlights(); }
 function redrawPianoWithHighlights() {
-  const canvas = document.getElementById('pianoCanvas');
-  const ctx = canvas.getContext('2d');
-  const cssW = canvas.clientWidth || canvas.offsetWidth;
-  const cssH = canvas.clientHeight || canvas.offsetHeight;
-  
-  ctx.fillStyle = (currentTheme === 'dark') ? '#000' : '#fff';
-  ctx.fillRect(0, 0, cssW, cssH);
+const canvas = document.getElementById('pianoCanvas');
+const ctx = canvas.getContext('2d');
+const cssW = canvas.clientWidth || canvas.offsetWidth;
+const cssH = canvas.clientHeight || canvas.offsetHeight;
 
-  let whiteCount = 0;
-  for (let n = PIANO.FIRST; n <= PIANO.LAST; n++) if (isWhiteMidi(n)) whiteCount++;
-  const whiteW = cssW / whiteCount;
-  const whiteH = cssH;
-  const blackW = whiteW * 0.65;
-  const blackH = cssH * 0.65;
+ctx.fillStyle = (currentTheme === 'dark') ? '#000' : '#fff';
+ctx.fillRect(0, 0, cssW, cssH);
 
-  let whiteIndex = 0;
-  for (let n = PIANO.FIRST; n <= PIANO.LAST; n++) {
+let whiteCount = 0;
+for (let n = PIANO.FIRST; n <= PIANO.LAST; n++) if (isWhiteMidi(n)) whiteCount++;
+const whiteW = cssW / whiteCount;
+const whiteH = cssH;
+const blackW = whiteW * 0.65;
+const blackH = cssH * 0.65;
+
+let whiteIndex = 0;
+for (let n = PIANO.FIRST; n <= PIANO.LAST; n++) {
     if (isWhiteMidi(n)) {
-      const x = Math.round(whiteIndex * whiteW);
-      if (activeHighlights.has(n)) ctx.fillStyle = 'rgba(100, 150, 255, 0.8)';
-      else ctx.fillStyle = '#fff';
-      ctx.fillRect(x, 0, whiteW, whiteH);
-      ctx.strokeStyle = '#999';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(x + 0.5, 0.5, whiteW - 1, whiteH - 1);
-      whiteIndex++;
+    const x = Math.round(whiteIndex * whiteW);
+    if (activeHighlights.has(n)) ctx.fillStyle = 'rgba(100, 150, 255, 0.8)';
+    else ctx.fillStyle = '#fff';
+    ctx.fillRect(x, 0, whiteW, whiteH);
+    ctx.strokeStyle = '#999';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x + 0.5, 0.5, whiteW - 1, whiteH - 1);
+    whiteIndex++;
     }
-  }
+}
 
-  for (let n = PIANO.FIRST; n <= PIANO.LAST; n++) {
+for (let n = PIANO.FIRST; n <= PIANO.LAST; n++) {
     const mod = n % 12;
     if ([1, 3, 6, 8, 10].includes(mod)) {
-      let leftWhite = n - 1;
-      while (leftWhite >= PIANO.FIRST && !isWhiteMidi(leftWhite)) leftWhite--;
-      if (PIANO.keyMap[leftWhite]) {
+    let leftWhite = n - 1;
+    while (leftWhite >= PIANO.FIRST && !isWhiteMidi(leftWhite)) leftWhite--;
+    if (PIANO.keyMap[leftWhite]) {
         const x = Math.round(PIANO.keyMap[leftWhite].x + whiteW - blackW / 2);
         if (activeHighlights.has(n)) ctx.fillStyle = 'rgba(100, 150, 255, 0.9)';
         else ctx.fillStyle = '#000';
@@ -468,688 +241,511 @@ function redrawPianoWithHighlights() {
         ctx.strokeStyle = '#333';
         ctx.lineWidth = 1;
         ctx.strokeRect(x + 0.5, 0.5, blackW - 1, blackH - 1);
-      }
     }
-  }
+    }
+}
 }
 
 /* pointer play mapping */
 document.getElementById('pianoCanvas').addEventListener('pointerdown', (ev)=>{
-  const rect = ev.target.getBoundingClientRect();
-  const x = ev.clientX - rect.left;
-  const y = ev.clientY - rect.top;
-  // check blacks first
-  for(let n=PIANO.FIRST;n<=PIANO.LAST;n++){
+const rect = ev.target.getBoundingClientRect();
+const x = ev.clientX - rect.left;
+const y = ev.clientY - rect.top;
+// check blacks first
+for(let n=PIANO.FIRST;n<=PIANO.LAST;n++){
     const k = PIANO.keyMap[n];
     if(k && k.black && x>=k.x && x<=k.x+k.w && y>=0 && y<=k.h){
-      highlightKey(n);
-      playNoteUnified(midiToNoteName(n), 0.95, 1.4);
-      if(midiOut) sendMidiNote(midiOut, 0x90, n, Math.round(0.95*127));
-      return;
+    highlightKey(n);
+    playNoteUnified(midiToNoteName(n), 0.95, 1.4);
+    if(midiOut) sendMidiNote(midiOut, 0x90, n, Math.round(0.95*127));
+    return;
     }
-  }
-  for(let n=PIANO.FIRST;n<=PIANO.LAST;n++){
+}
+for(let n=PIANO.FIRST;n<=PIANO.LAST;n++){
     const k = PIANO.keyMap[n];
     if(k && !k.black && x>=k.x && x<=k.x+k.w){
-      highlightKey(n);
-      playNoteUnified(midiToNoteName(n), 0.95, 1.4);
-      if(midiOut) sendMidiNote(midiOut, 0x90, n, Math.round(0.95*127));
-      return;
+    highlightKey(n);
+    playNoteUnified(midiToNoteName(n), 0.95, 1.4);
+    if(midiOut) sendMidiNote(midiOut, 0x90, n, Math.round(0.95*127));
+    return;
     }
-  }
+}
 });
 
 /* =========================
-   Sound engine: RealPianoLocal only (Tone.js removed)
-   ========================= */
-window.RealPiano = {
-  _ready: false,
-  init: async function() {
-    if (this._ready) return;
-    try {
-      console.log('Initializing RealPianoLocal...');
-      await RealPianoLocal.init({ 
-        useReverb: document.getElementById('reverbCheck').checked,
-        onprogress: (loaded, total) => {
-          const percentage = Math.round((loaded / total) * 100);
-          setStatus(`Loading samples: ${percentage}% (${loaded}/${total})`);
-          console.log(`Sample loading: ${loaded}/${total} (${percentage}%)`);
-        }
-      });
-      
-      this._ready = true;
-      console.log('RealPianoLocal initialization complete');
-      soundEngine = 'real';
-      setStatus('RealPianoLocal ready ✅');
-      
-    } catch (error) {
-      console.error('RealPianoLocal initialization failed:', error);
-      this._ready = false;
-      soundEngine = 'none';
-      setStatus('No sound engine available');
-    }
-  },
-  isReady: function() {
-    return this._ready && RealPianoLocal && RealPianoLocal.loaded && RealPianoLocal.audioCtx;
-  },
-  playNote: function(note, velocity=0.9, duration=1.5) {
-    if(!this._ready) {
-      console.warn("RealPiano not ready yet");
-      return;
-    }
-    try {
-      RealPianoLocal.playNote(note, velocity, duration);
-    } catch (error) {
-      console.error('RealPiano playNote error:', error);
-      throw error;
-    }
-  }
-};
-
+Sound engine: use RealPianoLocal (samples)
+========================= */
 async function initSoundEngine(){
-  try {
-    if(window.RealPiano && typeof RealPiano.init === 'function'){
-      await RealPiano.init();
-      if(RealPiano.isReady && RealPiano.isReady()){
-        soundEngine = 'real';
-        setStatus('Sound engine: RealPianoLocal ✅');
-        const sustainCheck = document.getElementById('sustainCheck');
-        if(sustainCheck && RealPianoLocal && RealPianoLocal.setSustainEnabled) {
-          RealPianoLocal.setSustainEnabled(sustainCheck.checked);
-        }
-        return;
-      } else {
-        console.warn('RealPiano reported not ready after initialization');
-      }
-    } else {
-      console.warn('RealPiano not available');
+try {
+    if(window.RealPianoLocal && typeof RealPianoLocal.init === 'function'){
+    await RealPianoLocal.init({ basePath: './assets/samples', ext: '.mp3', useReverb: document.getElementById('reverbCheck').checked, onprogress: (loaded,total)=> setStatus(`Loading samples ${loaded}/${total}`) });
+    soundEngine = RealPianoLocal.isReady() ? 'real' : 'none';
+    setStatus(soundEngine === 'real' ? 'Sound engine: RealPianoLocal ✅' : 'No sound engine available');
+    RealPianoLocal.setSustainEnabled(document.getElementById('sustainCheck').checked);
+    return;
     }
-  } catch(e) {
-    console.warn('RealPiano init error:', e);
-  }
-  soundEngine = 'none';
-  setStatus('No sound engine available');
+} catch(e){ console.warn('Sound init err', e); }
+soundEngine = 'none';
+setStatus('No sound engine available');
 }
 
-function playNoteUnified(noteName, velocity=0.9, duration=1.5){
-  if(soundEngine === 'real' && RealPiano && RealPiano.isReady && RealPiano.isReady()){
-    try{ RealPiano.playNote(noteName, velocity, duration); return; } catch(e){ console.warn('RealPiano play error:', e); }
-  }
-  // If RealPiano not ready, use RealPianoLocal directly if possible
-  try{
-    if(RealPianoLocal && RealPianoLocal.loaded) {
-      RealPianoLocal.playNote(noteName, velocity, duration);
-      return;
+function playNoteUnified(noteName, velocity=0.9, duration=1.5, startAtAudioTime=null){
+// If startAtAudioTime is provided (audio clock), schedule via setTimeout relative to audioCtx
+try{
+    if(soundEngine === 'real' && window.RealPianoLocal && RealPianoLocal.isReady()){
+    if(startAtAudioTime && RealPianoLocal.audioCtx){
+        const audioNow = RealPianoLocal.audioCtx.currentTime;
+        const delay = Math.max(0, (startAtAudioTime - audioNow) * 1000);
+        setTimeout(()=> RealPianoLocal.playNote(noteName, velocity, duration), Math.round(delay));
+    } else {
+        RealPianoLocal.playNote(noteName, velocity, duration);
     }
-  }catch(e){ console.warn('Fallback direct RealPianoLocal play failed', e); }
-  console.warn('No available sound engine to play note:', noteName);
+    return;
+    }
+}catch(e){ console.warn('RealPiano play error', e); }
+console.warn('No available sound engine to play note:', noteName);
 }
 
 function stopNoteUnified(noteName){
-  try{
-    if(RealPianoLocal) RealPianoLocal.stopNote(noteName);
-  }catch(e){ console.warn('Stop note error', e); }
+try{ if(RealPianoLocal) RealPianoLocal.stopNote(noteName); }catch(e){ console.warn('Stop note error', e); }
 }
 
-// Enhanced sustain control
+/* Enhanced sustain control */
 document.getElementById('sustainCheck').addEventListener('change', (e)=>{
-  const val = e.target.checked;
-  try{ 
-    if(RealPianoLocal && typeof RealPianoLocal.setSustainEnabled === 'function') {
-      RealPianoLocal.setSustainEnabled(val);
-      setStatus(`Sustain ${val ? 'enabled' : 'disabled'}`);
-      console.log(`Sustain ${val ? 'enabled' : 'disabled'}`);
-    } else {
-      setStatus('Sustain not available with RealPianoLocal');
-      console.warn('Sustain not available');
-    }
-  }catch(e){
-    console.warn('Sustain control error:', e);
-  }
+const val = e.target.checked;
+try{ if(RealPianoLocal && typeof RealPianoLocal.setSustainEnabled === 'function') { RealPianoLocal.setSustainEnabled(val); setStatus(`Sustain ${val ? 'enabled' : 'disabled'}`); } else { setStatus('Sustain not available'); } }catch(e){ console.warn('Sustain control error:', e); }
 });
 
-// Periodic check
-setInterval(()=>{
-  if(soundEngine === 'real' && (!RealPiano || !RealPiano.isReady || !RealPiano.isReady())) {
-    console.warn('RealPiano not ready; reinitializing...');
-    initSoundEngine();
-  }
-}, 30000);
-
-/* send midi message helper */
-function sendMidiNote(outDevice, statusByte, noteNumber, velocity){
-  try{
-    outDevice.send([statusByte, noteNumber, velocity]);
-  }catch(e){ console.warn('MIDI send err', e); }
-}
-
 /* =========================
-   Parse MusicXML -> events (seconds)
-   Also store bpmGlobal
-   ========================= */
-/* (Same implementation as original — unchanged) */
+Parse MusicXML -> events (seconds)
+========================= */
 function parseMusicXMLToEvents(xmlText) {
-  const doc = (new DOMParser()).parseFromString(xmlText, 'application/xml');
-  
-  if (doc.querySelector('parsererror')) {
-    throw new Error('Invalid XML format');
-  }
+const doc = (new DOMParser()).parseFromString(xmlText, 'application/xml');
+if (doc.querySelector('parsererror')) throw new Error('Invalid XML format');
 
-  let bpm = 120;
-  const soundEl = doc.querySelector('sound[tempo]');
-  if (soundEl && soundEl.getAttribute('tempo')) {
-    bpm = parseFloat(soundEl.getAttribute('tempo')) || bpm;
-  } else {
-    const perMin = doc.querySelector('per-minute');
-    if (perMin && perMin.textContent) bpm = parseFloat(perMin.textContent) || bpm;
-  }
-  
-  bpmGlobal = bpm;
-  
-  let divisions = 480;
-  const dEl = doc.querySelector('divisions');
-  if (dEl && dEl.textContent) divisions = parseInt(dEl.textContent) || divisions;
-  
-  const secondsPerDivision = (60 / bpm) / divisions;
-  const events = [];
-  let uniqueId = 1;
+let bpm = 120;
+const soundEl = doc.querySelector('sound[tempo]');
+if (soundEl && soundEl.getAttribute('tempo')) bpm = parseFloat(soundEl.getAttribute('tempo')) || bpm;
+else { const perMin = doc.querySelector('per-minute'); if (perMin && perMin.textContent) bpm = parseFloat(perMin.textContent) || bpm; }
+bpmGlobal = bpm;
 
-  const parts = doc.querySelectorAll('part');
-  parts.forEach((part, partIndex) => {
+let divisions = 480;
+const dEl = doc.querySelector('divisions');
+if (dEl && dEl.textContent) divisions = parseInt(dEl.textContent) || divisions;
+
+const secondsPerDivision = (60 / bpm) / divisions;
+const events = [];
+let uniqueId = 1;
+
+const parts = doc.querySelectorAll('part');
+parts.forEach((part, partIndex) => {
     let currentTimeDivisions = 0;
     const measures = part.querySelectorAll('measure');
-    
-    measures.forEach(measure => {
-      const measureDivisions = measure.querySelector('divisions');
-      if (measureDivisions && measureDivisions.textContent) {
-        divisions = parseInt(measureDivisions.textContent);
-      }
-      
-      const notes = measure.querySelectorAll('note');
-      let chordStartTime = currentTimeDivisions;
-      
-      notes.forEach(note => {
+    measures.forEach((measure, measureIndex) => {
+    const measureNumber = parseInt(measure.getAttribute('number') || (measureIndex+1));
+    const measureDivisions = measure.querySelector('divisions');
+    if (measureDivisions && measureDivisions.textContent) divisions = parseInt(measureDivisions.textContent);
+    const notes = measure.querySelectorAll('note');
+    let chordStartTime = currentTimeDivisions;
+    notes.forEach(note => {
         const isChord = note.querySelector('chord') !== null;
-        
         if (!isChord) chordStartTime = currentTimeDivisions;
-        
         const durationEl = note.querySelector('duration');
         if (!durationEl) return;
-        
         const durationDivisions = parseInt(durationEl.textContent) || divisions;
-        
-        if (note.querySelector('rest')) {
-          if (!isChord) currentTimeDivisions += durationDivisions;
-          return;
-        }
-        
+        if (note.querySelector('rest')) { if (!isChord) currentTimeDivisions += durationDivisions; return; }
         const pitchEl = note.querySelector('pitch');
-        if (!pitchEl) {
-          if (!isChord) currentTimeDivisions += durationDivisions;
-          return;
-        }
-        
+        if (!pitchEl) { if (!isChord) currentTimeDivisions += durationDivisions; return; }
         const step = pitchEl.querySelector('step')?.textContent || 'C';
         const alterEl = pitchEl.querySelector('alter');
         const alter = alterEl ? parseInt(alterEl.textContent) : 0;
         const octave = parseInt(pitchEl.querySelector('octave')?.textContent || '4', 10);
-        
         const nameIndexMap = {'C':0, 'D':2, 'E':4, 'F':5, 'G':7, 'A':9, 'B':11};
         const midiNumber = (octave + 1) * 12 + (nameIndexMap[step] || 0) + alter;
-        
         const timeSeconds = chordStartTime * secondsPerDivision;
-        const durationSeconds = Math.max(durationDivisions * secondsPerDivision, 0.1);
-        
+        const durationSeconds = Math.max(durationDivisions * secondsPerDivision, 0.05);
         let velocity = 0.8;
         const dynamics = note.querySelector('dynamics');
         if (dynamics) {
-          const dynType = dynamics.children[0]?.tagName?.toLowerCase();
-          if (dynType === 'pp') velocity = 0.3;
-          else if (dynType === 'p') velocity = 0.5;
-          else if (dynType === 'mp') velocity = 0.65;
-          else if (dynType === 'mf') velocity = 0.75;
-          else if (dynType === 'f') velocity = 0.9;
-          else if (dynType === 'ff') velocity = 1.0;
+        const dynType = dynamics.children[0]?.tagName?.toLowerCase();
+        if (dynType === 'pp') velocity = 0.3; else if (dynType === 'p') velocity = 0.5; else if (dynType === 'mp') velocity = 0.65; else if (dynType === 'mf') velocity = 0.75; else if (dynType === 'f') velocity = 0.9; else if (dynType === 'ff') velocity = 1.0;
         }
-        
-        events.push({
-          midi: midiNumber,
-          time: timeSeconds,
-          duration: durationSeconds,
-          velocity: velocity,
-          id: uniqueId++
-        });
-        
+        events.push({ midi: midiNumber, time: timeSeconds, duration: durationSeconds, velocity: velocity, id: uniqueId++, measure: measureNumber });
         if (!isChord) currentTimeDivisions += durationDivisions;
-      });
     });
-  });
+    });
+});
 
-  events.sort((a, b) => a.time - b.time);
-  return { events, bpm, divisions };
+events.sort((a,b)=>a.time-b.time);
+return { events, bpm, divisions };
 }
 
 /* =========================
-   MIDI -> MusicXML converter (FIXED for Grand Staff)
-   ========================= */
-function safeGetBPM(midiJson){ 
-  try{ 
-    if(midiJson.header && midiJson.header.bpm) return midiJson.header.bpm; 
-    if(midiJson.header && midiJson.header.tempos && midiJson.header.tempos.length) 
-      return midiJson.header.tempos[0].bpm; 
-  }catch(e){} 
-  return 120; 
-}
+Improved MIDI -> MusicXML converter (quantize, voices, staves)
+========================= */
+function safeGetBPM(midiJson){ try{ if(midiJson.header && midiJson.header.bpm) return midiJson.header.bpm; if(midiJson.header && midiJson.header.tempos && midiJson.header.tempos.length) return midiJson.header.tempos[0].bpm; }catch(e){} return 120; }
 
 function buildMusicXMLFromMidi(midiJson) {
-  const bpm = safeGetBPM(midiJson);
-  const secondsPerQuarter = 60 / bpm;
-  const divisions = 480;
-  const allNotes = [];
-  
-  midiJson.tracks.forEach((t, ti) => {
+const bpm = safeGetBPM(midiJson);
+const secondsPerQuarter = 60 / bpm;
+const divisions = 480;
+
+// Collect notes
+const allNotes = [];
+midiJson.tracks.forEach((t, ti) => {
     if (!t.notes) return;
-    t.notes.forEach(n => allNotes.push({ 
-      track: ti, 
-      midi: n.midi, 
-      time: n.time, 
-      duration: n.duration, 
-      velocity: n.velocity || 0.8 
-    }));
-  });
-  
-  if (allNotes.length === 0) throw new Error('No notes found in MIDI');
+    t.notes.forEach(n => allNotes.push({ track: ti, midi: n.midi, time: n.time, duration: n.duration, velocity: n.velocity || 0.8 }));
+});
+if (allNotes.length === 0) throw new Error('No notes found in MIDI');
+allNotes.sort((a,b)=>a.time-b.time);
 
-  allNotes.sort((a, b) => a.time - b.time);
+// Quantize to selected grid
+const quant = parseInt(document.getElementById('quantizeSelect').value) || 4; // e.g. 4 -> sixteenth when divisions=480
+const gridSeconds = secondsPerQuarter / quant;
+allNotes.forEach(n => {
+    n.time = Math.round(n.time / gridSeconds) * gridSeconds;
+    n.duration = Math.max( Math.round(n.duration / gridSeconds) * gridSeconds, gridSeconds );
+});
 
-  const measureDuration = secondsPerQuarter * 4;
-  const measures = new Map();
-  
-  allNotes.forEach(note => {
-    const measureIndex = Math.floor(note.time / measureDuration);
-    if (!measures.has(measureIndex)) measures.set(measureIndex, []);
-    measures.get(measureIndex).push(note);
-  });
+// Split into measures (4/4 fixed for now)
+const measureDuration = secondsPerQuarter * 4;
+const measures = new Map();
+allNotes.forEach(note => {
+    const mIdx = Math.floor(note.time / measureDuration);
+    if (!measures.has(mIdx)) measures.set(mIdx, []);
+    measures.get(mIdx).push(note);
+});
+const measureIndices = Array.from(measures.keys()).sort((a,b)=>a-b);
+const totalMeasures = measureIndices.length > 0 ? Math.max(...measureIndices)+1 : 1;
 
-  const measureIndices = Array.from(measures.keys()).sort((a, b) => a - b);
-  const totalMeasures = measureIndices.length > 0 ? Math.max(...measureIndices) + 1 : 1;
+// Voice allocation per staff: simple greedy algorithm per measure
+const splitThreshold = parseInt(document.getElementById('splitThreshold').value) || 60;
 
-  function pitchFromMidi(m) {
-    const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+function pitchFromMidi(m) {
+    const names = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
     const nm = names[m % 12];
-    return { 
-      step: nm.charAt(0), 
-      alter: nm.length > 1 ? 1 : 0, 
-      octave: Math.floor(m / 12) - 1 
-    };
-  }
+    return { step: nm.charAt(0), alter: nm.length > 1 ? 1 : 0, octave: Math.floor(m / 12) - 1 };
+}
 
-  let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
-  xml += `<score-partwise version="3.1">\n`;
-  xml += `  <part-list>\n`;
-  xml += `    <score-part id="P1"><part-name>Piano</part-name></score-part>\n`;
-  xml += `  </part-list>\n`;
-  xml += `  <part id="P1">\n`;
+let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
+xml += `<score-partwise version="3.1">\n  <part-list>\n    <score-part id="P1"><part-name>Piano</part-name></score-part>\n  </part-list>\n  <part id="P1">\n`;
 
-  for (let measureNum = 0; measureNum < totalMeasures; measureNum++) {
-    xml += `    <measure number="${measureNum + 1}">\n`;
-    
+for (let measureNum = 0; measureNum < totalMeasures; measureNum++) {
+    xml += `    <measure number="${measureNum+1}">\n`;
     if (measureNum === 0) {
-      xml += `      <attributes>\n`;
-      xml += `        <divisions>${divisions}</divisions>\n`;
-      xml += `        <key><fifths>0</fifths></key>\n`;
-      xml += `        <time><beats>4</beats><beat-type>4</beat-type></time>\n`;
-      // CRITICAL FIX: Add staves element to specify this is a Grand Staff
-      xml += `        <staves>2</staves>\n`;
-      xml += `        <clef number="1"><sign>G</sign><line>2</line></clef>\n`;
-      xml += `        <clef number="2"><sign>F</sign><line>4</line></clef>\n`;
-      xml += `      </attributes>\n`;
-      
-      xml += `      <direction placement="above">\n`;
-      xml += `        <direction-type>\n`;
-      xml += `          <metronome>\n`;
-      xml += `            <beat-unit>quarter</beat-unit>\n`;
-      xml += `            <per-minute>${bpm}</per-minute>\n`;
-      xml += `          </metronome>\n`;
-      xml += `        </direction-type>\n`;
-      xml += `        <sound tempo="${bpm}"/>\n`;
-      xml += `      </direction>\n`;
+    xml += `      <attributes>\n        <divisions>${divisions}</divisions>\n        <key><fifths>0</fifths></key>\n        <time><beats>4</beats><beat-type>4</beat-type></time>\n        <staves>2</staves>\n        <clef number="1"><sign>G</sign><line>2</line></clef>\n        <clef number="2"><sign>F</sign><line>4</line></clef>\n      </attributes>\n`;
+    xml += `      <direction placement="above">\n        <direction-type>\n          <metronome>\n            <beat-unit>quarter</beat-unit>\n            <per-minute>${bpm}</per-minute>\n          </metronome>\n        </direction-type>\n        <sound tempo="${bpm}"/>\n      </direction>\n`;
+    } else {
+    // Repeat staves attribute each measure to make OSMD reliably draw both staves
+    xml += `      <attributes>\n        <staves>2</staves>\n      </attributes>\n`;
     }
 
     const measureNotes = measures.get(measureNum) || [];
-    const splitThreshold = parseInt(document.getElementById('splitThreshold').value) || 60;
-
-    // Group notes by time
-    const timeGroups = new Map();
-    measureNotes.forEach(note => {
-      const timeKey = Math.round(note.time * 1000);
-      if (!timeGroups.has(timeKey)) timeGroups.set(timeKey, []);
-      timeGroups.get(timeKey).push(note);
+    // Group by start time
+    const groups = new Map();
+    measureNotes.forEach(n => {
+    const key = (Math.round((n.time - measureNum*measureDuration) * 100000) / 100000).toString();
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(n);
     });
 
-    // Process each time group
-    Array.from(timeGroups.keys()).sort((a, b) => a - b).forEach((timeKey, groupIndex) => {
-      const notes = timeGroups.get(timeKey);
-      
-      // Sort notes by pitch to ensure consistent chord ordering
-      notes.sort((a, b) => a.midi - b.midi);
-      
-      notes.forEach((note, noteIndex) => {
+    // allocate voices separately per staff inside each measure
+    const staffVoiceEnds = { '1': [], '2': [] }; // arrays of end times for each voice
+
+    const sortedKeys = Array.from(groups.keys()).sort((a,b)=>parseFloat(a)-parseFloat(b));
+    sortedKeys.forEach((k, groupIndex) => {
+    const group = groups.get(k);
+    // sort ascending pitch for deterministic chord order
+    group.sort((a,b)=>a.midi-b.midi);
+    group.forEach((note, noteIndex) => {
         const p = pitchFromMidi(note.midi);
         const durationDivisions = Math.max(1, Math.round((note.duration / secondsPerQuarter) * divisions));
-        const staff = note.midi >= splitThreshold ? 1 : 2;
-        
-        xml += `      <note>\n`;
-        if (noteIndex > 0) {
-          xml += `        <chord/>\n`;
+        // improved staff decision (natural piano split)
+        let staff = note.midi >= splitThreshold ? 1 : 2;
+        if(note.midi > 71) staff = 1;
+        if(note.midi < 52) staff = 2;
+
+        // assign voice: find first voice whose end <= note.start
+        const relativeStart = note.time - measureNum * measureDuration;
+        let voice = 1;
+        const ends = staffVoiceEnds[staff];
+        let assigned = false;
+        for (let v = 0; v < ends.length; v++){
+        if (relativeStart >= ends[v] - 1e-6) { voice = v+1; ends[v] = relativeStart + note.duration; assigned = true; break; }
         }
-        xml += `        <pitch>\n`;
-        xml += `          <step>${escapeXml(p.step)}</step>\n`;
+        if (!assigned) { ends.push(relativeStart + note.duration); voice = ends.length; }
+
+        xml += `      <note>\n`;
+        if (noteIndex > 0) xml += `        <chord/>\n`;
+        xml += `        <pitch>\n          <step>${escapeXml(p.step)}</step>\n`;
         if (p.alter !== 0) xml += `          <alter>${p.alter}</alter>\n`;
-        xml += `          <octave>${p.octave}</octave>\n`;
-        xml += `        </pitch>\n`;
+        xml += `          <octave>${p.octave}</octave>\n        </pitch>\n`;
         xml += `        <duration>${durationDivisions}</duration>\n`;
-        
-        // Determine note type based on duration
         const noteType = getNoteType(durationDivisions, divisions);
         xml += `        <type>${noteType}</type>\n`;
-        
         xml += `        <staff>${staff}</staff>\n`;
-        
-        // Add velocity/dynamics if available
+        xml += `        <voice>${voice}</voice>\n`;
         if (note.velocity) {
-          const velocity = note.velocity;
-          if (velocity < 0.4) {
-            xml += `        <dynamics><pp/></dynamics>\n`;
-          } else if (velocity < 0.6) {
-            xml += `        <dynamics><p/></dynamics>\n`;
-          } else if (velocity < 0.8) {
-            xml += `        <dynamics><mp/></dynamics>\n`;
-          } else if (velocity < 1.0) {
-            xml += `        <dynamics><f/></dynamics>\n`;
-          } else {
-            xml += `        <dynamics><ff/></dynamics>\n`;
-          }
+        const velocity = note.velocity;
+        if (velocity < 0.4) xml += `        <dynamics><pp/></dynamics>\n`;
+        else if (velocity < 0.6) xml += `        <dynamics><p/></dynamics>\n`;
+        else if (velocity < 0.8) xml += `        <dynamics><mp/></dynamics>\n`;
+        else if (velocity < 1.0) xml += `        <dynamics><f/></dynamics>\n`;
+        else xml += `        <dynamics><ff/></dynamics>\n`;
         }
-        
         xml += `      </note>\n`;
-      });
+    });
     });
 
     xml += `    </measure>\n`;
-  }
-
-  xml += `  </part>\n`;
-  xml += `</score-partwise>\n`;
-  
-  return xml;
 }
 
-// Helper function to determine note type based on duration
+xml += `  </part>\n</score-partwise>\n`;
+return xml;
+}
+
 function getNoteType(durationDivisions, divisions) {
-  const quarter = divisions;
-  const half = quarter * 2;
-  const whole = quarter * 4;
-  const eighth = quarter / 2;
-  const sixteenth = quarter / 4;
-  
-  if (durationDivisions >= whole) return "whole";
-  if (durationDivisions >= half) return "half";
-  if (durationDivisions >= quarter) return "quarter";
-  if (durationDivisions >= eighth) return "eighth";
-  return "16th";
+const quarter = divisions;
+const half = quarter * 2;
+const whole = quarter * 4;
+const eighth = quarter / 2;
+const sixteenth = quarter / 4;
+if (durationDivisions >= whole) return "whole";
+if (durationDivisions >= half) return "half";
+if (durationDivisions >= quarter) return "quarter";
+if (durationDivisions >= eighth) return "eighth";
+return "16th";
 }
 
 /* =========================
-   Build GraphicalNote map from OSMD internals (best-effort)
-   ========================= */
-function buildGraphicalNoteMapFromOsmd(xmlText) {
-  graphicalNoteMap.clear();
-  useGraphicalMap = false;
-  
-  try {
-    if (!osmd || !osmd.graphic) {
-      throw new Error('OSMD not properly initialized');
-    }
-    
+Build GraphicalNote map from OSMD internals (best-effort)
+- Improved: tries to use sourceNote.Id, falls back to measure-midi keys
+- Waits for osmd.graphic to be ready, retries a few times
+========================= */
+function buildGraphicalNoteMapFromOsmd(retry=0) {
+graphicalNoteMap.clear();
+useGraphicalMap = false;
+try {
+    if (!osmd || !osmd.graphic) throw new Error('OSMD not initialized');
     const sheet = osmd.graphic;
     const measures = sheet.MeasureList || [];
-    
+
     measures.forEach(measure => {
-      const staffEntries = measure.staffEntries || [];
-      
-      staffEntries.forEach(staffEntry => {
+    // some OSMD builds store measureNumber
+    const mNum = (measure.measureNumber != null) ? measure.measureNumber : (measure.parentBarNumber || 0);
+    const staffEntries = measure.staffEntries || [];
+    staffEntries.forEach(staffEntry => {
         const graphicalVoiceEntries = staffEntry.graphicalVoiceEntries || [];
-        
         graphicalVoiceEntries.forEach(voiceEntry => {
-          const notes = voiceEntry.notes || [];
-          
-          notes.forEach(graphicalNote => {
+        const notes = voiceEntry.notes || [];
+        notes.forEach(graphicalNote => {
             const sourceNote = graphicalNote.sourceNote;
-            if (!sourceNote) return;
-            
+            if (sourceNote && sourceNote.Id) {
+            const keyId = `id-${sourceNote.Id}`;
+            if (!graphicalNoteMap.has(keyId)) graphicalNoteMap.set(keyId, []);
+            graphicalNoteMap.get(keyId).push(graphicalNote);
+            }
+            // also add measure-midi fallback
             let midiNumber = null;
-            if (sourceNote.pitch) {
-              midiNumber = sourceNote.pitch.Midi;
-            }
-            
+            try{ if (sourceNote && sourceNote.pitch && typeof sourceNote.pitch.Midi === 'number') midiNumber = sourceNote.pitch.Midi; }catch(e){}
             if (midiNumber !== null) {
-              const key = `m${measure.measureNumber}-${midiNumber}`;
-              if (!graphicalNoteMap.has(key)) {
-                graphicalNoteMap.set(key, []);
-              }
-              graphicalNoteMap.get(key).push(graphicalNote);
+            const key = `m${mNum}-${midiNumber}`;
+            if (!graphicalNoteMap.has(key)) graphicalNoteMap.set(key, []);
+            graphicalNoteMap.get(key).push(graphicalNote);
             }
-          });
         });
-      });
+        });
     });
-    
-    if (graphicalNoteMap.size > 0) {
-      useGraphicalMap = true;
-      setStatus('Graphical note map built (OSMD internals)');
-      return;
-    }
-  } catch (e) {
-    console.warn('OSMD internal mapping failed:', e);
-  }
-  
-  try {
+    });
+
+    if (graphicalNoteMap.size > 0) { useGraphicalMap = true; setStatus('Graphical note map built (OSMD internals)'); return; }
+} catch (e) {
+    console.warn('OSMD internal mapping failed or not ready yet:', e);
+}
+
+// If we reach here: retry a few times (OSMD may still be building internals)
+if (retry < 6) {
+    setTimeout(()=> buildGraphicalNoteMapFromOsmd(retry+1), 150);
+    return;
+}
+
+// Fallback: DOM mapping (last resort)
+try {
     const svg = document.querySelector('#grandStaff svg');
-    if (!svg) throw new Error('No SVG found');
-    
-    setTimeout(() => {
-      const noteElements = Array.from(svg.querySelectorAll('.vf-note, .note, [data-notehead]'));
-      noteElements.forEach((el, index) => {
+    if (!svg) throw new Error('No SVG');
+    const noteElements = Array.from(svg.querySelectorAll('.vf-note, .note, [data-notehead]'));
+    noteElements.forEach((el, index) => {
+    try{
         const bbox = el.getBBox ? el.getBBox() : null;
-        if (bbox) {
-          const key = `dom-${index}-${bbox.x}-${bbox.y}`;
-          graphicalNoteMap.set(key, [el]);
-        }
-      });
-      setStatus(`Fallback mapping: ${graphicalNoteMap.size} elements found`);
-    }, 500);
-  } catch (e) {
-    console.warn('DOM fallback mapping failed:', e);
-  }
+        const key = `dom-${index}-${bbox ? Math.round(bbox.x) : 0}-${bbox ? Math.round(bbox.y) : 0}`;
+        graphicalNoteMap.set(key, [el]);
+    }catch(e){}
+    });
+    setStatus(`Fallback mapping: ${graphicalNoteMap.size} elements found`);
+} catch (e) { console.warn('DOM fallback mapping failed:', e); }
 }
 
 function findGraphicalForEvent(ev) {
-  const results = [];
-  for (const [key, graphicalObjects] of graphicalNoteMap.entries()) {
-    if (key.includes(`-${ev.midi}`)) {
-      results.push(...graphicalObjects);
+const results = [];
+// first try exact id mapping if event has osmdId
+if (ev.osmdId) {
+    const keyId = `id-${ev.osmdId}`;
+    if (graphicalNoteMap.has(keyId)) return graphicalNoteMap.get(keyId).slice();
+}
+
+// then try measure-midi mapping
+const keyMM = `m${ev.measure}-${ev.midi}`;
+if (graphicalNoteMap.has(keyMM)) return graphicalNoteMap.get(keyMM).slice();
+
+// fallback: find closest by midi within +/-2
+let closestKey = null; let minDiff = Infinity;
+for (const key of graphicalNoteMap.keys()){
+    const match = key.match(/m\d+-(\d+)/);
+    if (match) {
+    const graphicalMidi = parseInt(match[1]);
+    const diff = Math.abs(graphicalMidi - ev.midi);
+    if (diff < minDiff) { minDiff = diff; closestKey = key; }
     }
-  }
-  if (results.length === 0) {
-    let closestKey = null;
-    let minDiff = Infinity;
-    for (const key of graphicalNoteMap.keys()) {
-      const match = key.match(/m\d+-(\d+)/);
-      if (match) {
-        const graphicalMidi = parseInt(match[1]);
-        const diff = Math.abs(graphicalMidi - ev.midi);
-        if (diff < minDiff) {
-          minDiff = diff;
-          closestKey = key;
-        }
-      }
-    }
-    if (closestKey && minDiff <= 2) {
-      results.push(...graphicalNoteMap.get(closestKey));
-    }
-  }
-  return results;
+}
+if (closestKey && minDiff <= 2) return graphicalNoteMap.get(closestKey).slice();
+
+// last resort: empty
+return results;
 }
 
 function setGraphicalHighlight(obj, on){
-  if(!obj) return;
-  try{
-    if(obj.sourceNote){
-      obj.sourceNote.NoteheadColor = on ? '#ff4444' : undefined;
-      if(obj.parent && obj.parent.ParentMeasure) {
-        try{ osmd.render(); } catch(e){}
-        return;
-      }
-    }
-  }catch(e){}
-  try{
-    if(obj.style){
-      obj.style.fill = on ? '#ff4444' : '';
-      obj.style.stroke = on ? '#ff4444' : '';
-    } else if(obj.setAttribute){
-      obj.setAttribute('fill', on ? '#ff4444' : '');
-      obj.setAttribute('stroke', on ? '#ff4444' : '');
-    }
-  }catch(e){}
+if(!obj) return;
+try{ if(obj.sourceNote){ if(on) obj.sourceNote.NoteheadColor = '#ff4444'; else obj.sourceNote.NoteheadColor = undefined; try{ osmd.render(); }catch(e){} return; } }catch(e){}
+try{ if(obj.style){ obj.style.fill = on ? '#ff4444' : ''; obj.style.stroke = on ? '#ff4444' : ''; } else if(obj.setAttribute){ obj.setAttribute('fill', on ? '#ff4444' : ''); obj.setAttribute('stroke', on ? '#ff4444' : ''); } }catch(e){}
 }
 
 /* =========================
-   Playback scheduling with OSMD highlights
-   ========================= */
-function clearScheduled(){
-  scheduledTimers.forEach(t=>clearTimeout(t));
-  scheduledTimers = [];
-}
+Playback scheduler (audio-clock lookahead)
+- keeps scheduling relative to audioCtx.currentTime
+========================= */
+let schedulerInterval = null;
+let scheduleLookAhead = 0.12; // seconds
+let scheduleIntervalMs = 25; // run scheduler every 25ms
 
-function playFromIndex(startIndex) {
-  if (!xmlEvents || xmlEvents.length === 0) {
-    setStatus('No score loaded');
-    return;
-  }
-  
-  clearScheduled();
-  playing = true;
-  nextEventIndex = startIndex;
-  playStartTime = nowSeconds();
-  playBase = xmlEvents[0].time;
-  setStatus('Playing — events: ' + (xmlEvents.length - startIndex));
+function clearScheduled(){ scheduledTimers.forEach(t=>clearTimeout(t)); scheduledTimers = []; }
 
-  const eventGroups = [];
-  let currentGroup = [];
-  let currentTime = -1;
+function startPlaybackFrom(index){
+if (!xmlEvents || xmlEvents.length === 0) { setStatus('No score loaded'); return; }
+clearScheduled(); playing = true; playCursorIdx = index || 0;
 
-  for (let i = startIndex; i < xmlEvents.length; i++) {
-    const ev = xmlEvents[i];
-    if (Math.abs(ev.time - currentTime) > 0.01) {
-      if (currentGroup.length > 0) eventGroups.push([...currentGroup]);
-      currentGroup = [ev];
-      currentTime = ev.time;
-    } else {
-      currentGroup.push(ev);
+const audioCtx = (window.RealPianoLocal && RealPianoLocal.audioCtx) ? RealPianoLocal.audioCtx : null;
+playBase = xmlEvents[0].time;
+playStartAudioTime = audioCtx ? audioCtx.currentTime : performance.now()/1000;
+setStatus('Playing — events: ' + (xmlEvents.length - playCursorIdx));
+
+// scheduler loop
+schedulerInterval = setInterval(()=>{
+    const nowAudio = audioCtx ? audioCtx.currentTime : (performance.now()/1000);
+    const lookaheadTarget = nowAudio + scheduleLookAhead;
+
+    while(playCursorIdx < xmlEvents.length){
+    const ev = xmlEvents[playCursorIdx];
+    const evAudioTime = playStartAudioTime + (ev.time - playBase);
+    if (evAudioTime <= lookaheadTarget){
+        // schedule this event
+        scheduleEventAt(ev, evAudioTime);
+        playCursorIdx++;
+    } else break;
     }
-  }
-  if (currentGroup.length > 0) eventGroups.push(currentGroup);
 
-  eventGroups.forEach((group) => {
-    const firstEvent = group[0];
-    const triggerAt = playStartTime + (firstEvent.time - playBase);
-    const delayMs = Math.max(0, (triggerAt - nowSeconds()) * 1000);
-    
-    const tOn = setTimeout(() => {
-      group.forEach(ev => {
-        const noteName = midiToNoteName(ev.midi);
-        playNoteUnified(noteName, ev.velocity, ev.duration);
-        if (midiOut) sendMidiNote(midiOut, 0x90, ev.midi, Math.round(ev.velocity * 127));
-        highlightKey(ev.midi);
-        const gNotes = findGraphicalForEvent(ev);
-        gNotes.forEach(g => setGraphicalHighlight(g, true));
-      });
-      const maxDuration = Math.max(...group.map(ev => ev.duration));
-      const tOff = setTimeout(() => {
-        group.forEach(ev => {
-          if (midiOut) sendMidiNote(midiOut, 0x80, ev.midi, 0);
-          removeHighlight(ev.midi);
-          const gNotes = findGraphicalForEvent(ev);
-          gNotes.forEach(g => setGraphicalHighlight(g, false));
-        });
-        try {
-          if (osmd && osmd.cursor && typeof osmd.cursor.next === 'function') osmd.cursor.next();
-        } catch (e) {}
-      }, Math.max(30, maxDuration * 1000));
-      scheduledTimers.push(tOff);
-      nextEventIndex += group.length;
-    }, delayMs);
-    scheduledTimers.push(tOn);
-  });
-
-  if (eventGroups.length > 0) {
-    const lastGroup = eventGroups[eventGroups.length - 1];
-    const lastEvent = lastGroup[lastGroup.length - 1];
-    const endMs = ((lastEvent.time - playBase) + lastEvent.duration) * 1000 + 500;
-    scheduledTimers.push(setTimeout(() => {
-      setStatus('Stopped');
-      playing = false;
-      nextEventIndex = xmlEvents.length;
-      activeHighlights.clear();
-      redrawPianoWithHighlights();
-    }, endMs));
-  }
+    // stop when done
+    if (playCursorIdx >= xmlEvents.length){
+    clearInterval(schedulerInterval); schedulerInterval = null;
+    // schedule final stop
+    setTimeout(()=>{ setStatus('Stopped'); playing=false; playCursorIdx = xmlEvents.length; activeHighlights.clear(); redrawPianoWithHighlights(); }, Math.max(200, (xmlEvents[xmlEvents.length-1].duration*1000)+200));
+    }
+}, scheduleIntervalMs);
 }
 
+function scheduleEventAt(ev, audioTime){
+try {
+    const noteName = midiToNoteName(ev.midi);
+
+    // Play the note with exact WebAudio scheduling
+    playNoteUnified(noteName, ev.velocity, ev.duration, audioTime);
+
+    // Optional MIDI OUT (but safe!) - try to timestamp using performance.now() converted when possible
+    if (midiOut && midiOut.send) {
+    try{
+        // Some MIDI implementations expect ms timestamp from performance.now()
+        const tMs = (audioTime - (window.RealPianoLocal && RealPianoLocal.audioCtx)? RealPianoLocal.audioCtx.currentTime : (performance.now()/1000)) * 1000 + performance.now();
+        midiOut.send([0x90, ev.midi, Math.round(ev.velocity * 127)], undefined);
+    }catch(e){ midiOut.send([0x90, ev.midi, Math.round(ev.velocity * 127)]); }
+    }
+
+    // Visual highlight
+    highlightKey(ev.midi);
+    const gNotes = findGraphicalForEvent(ev);
+    gNotes.forEach(g => setGraphicalHighlight(g, true));
+
+    // Schedule note off USING AUDIO TIME
+    const offTime = audioTime + ev.duration;
+    const audioCtx = (window.RealPianoLocal && RealPianoLocal.audioCtx) ? RealPianoLocal.audioCtx : null;
+
+    // Use RealPianoLocal's stop if available
+    try{ if (window.RealPianoLocal && typeof RealPianoLocal.stopNoteAt === 'function') RealPianoLocal.stopNoteAt(ev.midi, offTime); }catch(e){ /* ignore */ }
+
+    // Safe MIDI OUT off
+    try{ if (midiOut && midiOut.send) midiOut.send([0x80, ev.midi, 0]); }catch(e){}
+
+    // Schedule visual note-off using audio clock
+    const now = audioCtx ? audioCtx.currentTime : (performance.now()/1000);
+    const visualDelay = Math.max(0, (offTime - now) * 1000);
+    const timer = setTimeout(() => {
+    removeHighlight(ev.midi);
+    gNotes.forEach(g => setGraphicalHighlight(g, false));
+    }, visualDelay);
+
+    scheduledTimers.push(timer);
+
+} catch(e) {
+    console.warn("Scheduling event failed", e);
+}
+}
 /* Controls: play/pause/stop */
 document.getElementById('playBtn').addEventListener('click', async ()=>{
-  if(playing){ setStatus('Already playing'); return; }
-  if(!xmlEvents || xmlEvents.length===0){ setStatus('No score loaded'); return; }
-  if(nextEventIndex >= xmlEvents.length) nextEventIndex = 0;
-  // No Tone.start required anymore
-  playFromIndex(nextEventIndex);
+if(playing){ setStatus('Already playing'); return; }
+if(!xmlEvents || xmlEvents.length===0){ setStatus('No score loaded'); return; }
+if(playCursorIdx >= xmlEvents.length) playCursorIdx = 0;
+startPlaybackFrom(playCursorIdx);
 });
 
 document.getElementById('pauseBtn').addEventListener('click', ()=>{
-  if(!playing){ setStatus('Not playing'); return; }
-  const elapsed = nowSeconds() - playStartTime;
-  clearScheduled();
-  for(let i=0;i<xmlEvents.length;i++){
-    if(xmlEvents[i].time >= playBase + elapsed - 0.0001){ nextEventIndex = i; break; }
-  }
-  playing = false;
-  setStatus('Paused — next idx ' + nextEventIndex);
+if(!playing){ setStatus('Not playing'); return; }
+const audioCtx = (window.RealPianoLocal && RealPianoLocal.audioCtx) ? RealPianoLocal.audioCtx : null;
+const nowAudio = audioCtx ? audioCtx.currentTime : (performance.now()/1000);
+clearInterval(schedulerInterval); schedulerInterval = null;
+clearScheduled();
+// compute nextEventIndex
+for(let i=0;i<xmlEvents.length;i++){
+    const evAudioTime = playStartAudioTime + (xmlEvents[i].time - playBase);
+    if (evAudioTime >= nowAudio - 0.0001){ playCursorIdx = i; break; }
+}
+playing = false;
+setStatus('Paused — next idx ' + playCursorIdx);
 });
 
 document.getElementById('stopBtn').addEventListener('click', ()=>{
-  clearScheduled();
-  playing = false;
-  nextEventIndex = 0;
-  activeHighlights.clear();
-  redrawPianoWithHighlights();
-  try { if(RealPianoLocal) RealPianoLocal.stopNote(); } catch(e) {}
-  setStatus('Stopped');
+clearInterval(schedulerInterval); schedulerInterval = null;
+clearScheduled(); playing = false; playCursorIdx = 0; activeHighlights.clear(); redrawPianoWithHighlights(); try{ if(RealPianoLocal) RealPianoLocal.stopNote(); }catch(e){} setStatus('Stopped');
 });
 
 /* =========================
-   Load file (single control: MIDI or MusicXML)
-   ========================= */
+Load file (single control: MIDI or MusicXML)
+========================= */
 document.getElementById('loadAnyBtn').addEventListener('click', ()=> document.getElementById('anyFileInput').click());
 document.getElementById('anyFileInput').addEventListener('change', async (e)=>{
-  const file = e.target.files[0];
-  if(!file) return;
-  const name = file.name.toLowerCase();
-  if(name.endsWith('.mid') || name.endsWith('.midi')){
+const file = e.target.files[0]; if(!file) return; const name = file.name.toLowerCase();
+if(name.endsWith('.mid') || name.endsWith('.midi')){
     setStatus('Parsing MIDI: ' + file.name);
     const reader = new FileReader();
     reader.onload = async (ev)=>{
-      try{
+    try{
         const buf = ev.target.result;
         const midiJson = await MidiConvert.parse(buf);
         setStatus('Converting MIDI → MusicXML...');
@@ -1161,162 +757,52 @@ document.getElementById('anyFileInput').addEventListener('change', async (e)=>{
         const parsed = parseMusicXMLToEvents(xml);
         xmlEvents = parsed.events;
         bpmGlobal = parsed.bpm || 120;
-        buildGraphicalNoteMapFromOsmd(xml);
+        buildGraphicalNoteMapFromOsmd();
         setStatus('MIDI converted & rendered — events: ' + xmlEvents.length + ' BPM: ' + bpmGlobal);
-      }catch(err){
-        console.error('MIDI conversion error', err);
-        setStatus('MIDI conversion error');
-      }
+    }catch(err){ console.error('MIDI conversion error', err); setStatus('MIDI conversion error'); }
     };
     reader.readAsArrayBuffer(file);
-  } else if(name.endsWith('.xml') || name.endsWith('.musicxml') || name.endsWith('.mxl')){
+} else if(name.endsWith('.xml') || name.endsWith('.musicxml') || name.endsWith('.mxl')){
     setStatus('Loading MusicXML: ' + file.name);
     const text = await file.text();
     try{
-      xmlTextLast = text;
-      await osmd.load(text);
-      await osmd.render();
-      enforceSvgTheme();
-      const parsed = parseMusicXMLToEvents(text);
-      xmlEvents = parsed.events;
-      bpmGlobal = parsed.bpm || 120;
-      buildGraphicalNoteMapFromOsmd(text);
-      setStatus('MusicXML loaded — events: ' + xmlEvents.length + ' BPM: ' + bpmGlobal);
-    }catch(err){
-      console.error('XML load',err);
-      setStatus('MusicXML load failed');
-    }
-  } else {
-    setStatus('Unsupported file type');
-  }
+    xmlTextLast = text;
+    await osmd.load(text);
+    await osmd.render();
+    enforceSvgTheme();
+    const parsed = parseMusicXMLToEvents(text);
+    xmlEvents = parsed.events;
+    bpmGlobal = parsed.bpm || 120;
+    buildGraphicalNoteMapFromOsmd();
+    setStatus('MusicXML loaded — events: ' + xmlEvents.length + ' BPM: ' + bpmGlobal);
+    }catch(err){ console.error('XML load',err); setStatus('MusicXML load failed'); }
+} else { setStatus('Unsupported file type'); }
 });
 
 /* =========================
-   MIDI access / outputs
-   ========================= */
-document.getElementById('initMidiBtn').addEventListener('click', async ()=>{
-  try{ await navigator.requestMIDIAccess(); setStatus('MIDI access OK'); }catch(e){ console.warn(e); setStatus('MIDI init failed'); }
-});
-document.getElementById('enableMidiOutBtn').addEventListener('click', async ()=>{
-  try{
-    const access = await navigator.requestMIDIAccess({ sysex:true });
-    const outs = Array.from(access.outputs.values());
-    if(outs.length===0){ setStatus('No MIDI outputs'); return; }
-    const real = outs.filter(o=>{
-      const n = (o.name||'').toLowerCase();
-      return !(n.includes('through')||n.includes('loopback')||n.includes('virtual')||n.includes('midi-through'));
-    });
-    midiOut = real.length ? real[0] : outs[0];
-    setStatus('MIDI Out: ' + midiOut.name);
-  }catch(e){ console.warn(e); setStatus('MIDI out error'); }
-});
+MIDI access / outputs
+========================= */
+document.getElementById('initMidiBtn').addEventListener('click', async ()=>{ try{ await navigator.requestMIDIAccess(); setStatus('MIDI access OK'); }catch(e){ console.warn(e); setStatus('MIDI init failed'); } });
+document.getElementById('enableMidiOutBtn').addEventListener('click', async ()=>{ try{ const access = await navigator.requestMIDIAccess({ sysex:true }); const outs = Array.from(access.outputs.values()); if(outs.length===0){ setStatus('No MIDI outputs'); return; } const real = outs.filter(o=>{ const n=(o.name||'').toLowerCase(); return !(n.includes('through')||n.includes('loopback')||n.includes('virtual')||n.includes('midi-through')); }); midiOut = real.length ? real[0] : outs[0]; setStatus('MIDI Out: ' + midiOut.name); }catch(e){ console.warn(e); setStatus('MIDI out error'); } });
 
 /* =========================
-   MIDI export (MusicXML -> .mid)
-   Minimal single-track MIDI writer (unchanged)
-   ========================= */
-function writeVarLen(value){
-  const buffer = [];
-  let val = value & 0x0FFFFFFF;
-  let bytes = [];
-  bytes.push(val & 0x7F);
-  val >>= 7;
-  while(val > 0){
-    bytes.push((val & 0x7F) | 0x80);
-    val >>= 7;
-  }
-  for(let i=bytes.length-1;i>=0;i--) buffer.push(bytes[i]);
-  return buffer;
-}
-function numberToBytes(number, bytes){
-  const arr = [];
-  for(let i=bytes-1;i>=0;i--){
-    arr.push((number >> (8*i)) & 0xFF);
-  }
-  return arr;
-}
-function buildMidiFromEvents(events, bpm){
-  const PPQ = 480;
-  const ticksPerSecond = (PPQ * bpm) / 60;
-  const noteOnOffs = [];
-  events.forEach((ev, idx)=>{
-    const tOn = Math.round(ev.time * ticksPerSecond);
-    const tOff = Math.round((ev.time + ev.duration) * ticksPerSecond);
-    const vel = Math.max(1, Math.min(127, Math.round(ev.velocity * 127)));
-    noteOnOffs.push({ tick: tOn, type: 'on', note: ev.midi, vel });
-    noteOnOffs.push({ tick: tOff, type: 'off', note: ev.midi, vel: 0 });
-  });
-  noteOnOffs.sort((a,b)=> (a.tick - b.tick) || ((a.type==='on')? -1:1) - ((b.type==='on')? -1:1));
-  let lastTick = 0;
-  const eventsBytes = [];
-  noteOnOffs.forEach(evt=>{
-    const delta = evt.tick - lastTick;
-    lastTick = evt.tick;
-    const vl = writeVarLen(delta);
-    eventsBytes.push(...vl);
-    if(evt.type === 'on'){
-      eventsBytes.push(0x90, evt.note & 0x7F, evt.vel & 0x7F);
-    } else {
-      eventsBytes.push(0x80, evt.note & 0x7F, evt.vel & 0x7F);
-    }
-  });
-  eventsBytes.push(...writeVarLen(0), 0xFF, 0x2F, 0x00);
-  const header = [];
-  header.push(...[0x4d,0x54,0x68,0x64]);
-  header.push(...numberToBytes(6,4));
-  header.push(...numberToBytes(0,2));
-  header.push(...numberToBytes(1,2));
-  header.push(...numberToBytes(PPQ,2));
-  const trackChunk = [];
-  trackChunk.push(...[0x4d,0x54,0x72,0x6b]);
-  trackChunk.push(...numberToBytes(eventsBytes.length,4));
-  trackChunk.push(...eventsBytes);
-  const bytes = new Uint8Array([...header, ...trackChunk]);
-  return bytes;
-}
+MIDI export (MusicXML -> .mid)
+========================= */
+function writeVarLen(value){ const buffer = []; let val = value & 0x0FFFFFFF; let bytes = []; bytes.push(val & 0x7F); val >>= 7; while(val > 0){ bytes.push((val & 0x7F) | 0x80); val >>= 7; } for(let i=bytes.length-1;i>=0;i--) buffer.push(bytes[i]); return buffer; }
+function numberToBytes(number, bytes){ const arr = []; for(let i=bytes-1;i>=0;i--){ arr.push((number >> (8*i)) & 0xFF); } return arr; }
+function buildMidiFromEvents(events, bpm){ const PPQ = 480; const ticksPerSecond = (PPQ * bpm) / 60; const noteOnOffs = []; events.forEach((ev, idx)=>{ const tOn = Math.round(ev.time * ticksPerSecond); const tOff = Math.round((ev.time + ev.duration) * ticksPerSecond); const vel = Math.max(1, Math.min(127, Math.round(ev.velocity * 127))); noteOnOffs.push({ tick: tOn, type: 'on', note: ev.midi, vel }); noteOnOffs.push({ tick: tOff, type: 'off', note: ev.midi, vel: 0 }); }); noteOnOffs.sort((a,b)=> (a.tick - b.tick) || ((a.type==='on')? -1:1) - ((b.type==='on')? -1:1)); let lastTick = 0; const eventsBytes = []; noteOnOffs.forEach(evt=>{ const delta = evt.tick - lastTick; lastTick = evt.tick; const vl = writeVarLen(delta); eventsBytes.push(...vl); if(evt.type === 'on'){ eventsBytes.push(0x90, evt.note & 0x7F, evt.vel & 0x7F); } else { eventsBytes.push(0x80, evt.note & 0x7F, evt.vel & 0x7F); } }); eventsBytes.push(...writeVarLen(0), 0xFF, 0x2F, 0x00); const header = []; header.push(...[0x4d,0x54,0x68,0x64]); header.push(...numberToBytes(6,4)); header.push(...numberToBytes(0,2)); header.push(...numberToBytes(1,2)); header.push(...numberToBytes(PPQ,2)); const trackChunk = []; trackChunk.push(...[0x4d,0x54,0x72,0x6b]); trackChunk.push(...numberToBytes(eventsBytes.length,4)); trackChunk.push(...eventsBytes); const bytes = new Uint8Array([...header, ...trackChunk]); return bytes; }
 
-document.getElementById('exportMidiBtn').addEventListener('click', ()=>{
-  if(!xmlTextLast || !xmlEvents || xmlEvents.length===0){ setStatus('Nothing to export'); return; }
-  try{
-    const midiBytes = buildMidiFromEvents(xmlEvents, bpmGlobal || 120);
-    const blob = new Blob([midiBytes], { type: 'audio/midi' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'score_export.mid';
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
-    setStatus('MIDI exported');
-  }catch(e){
-    console.error('MIDI export err', e);
-    setStatus('MIDI export failed');
-  }
-});
+document.getElementById('exportMidiBtn').addEventListener('click', ()=>{ if(!xmlTextLast || !xmlEvents || xmlEvents.length===0){ setStatus('Nothing to export'); return; } try{ const midiBytes = buildMidiFromEvents(xmlEvents, bpmGlobal || 120); const blob = new Blob([midiBytes], { type: 'audio/midi' }); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'score_export.mid'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url); setStatus('MIDI exported'); }catch(e){ console.error('MIDI export err', e); setStatus('MIDI export failed'); } });
 
 /* =========================
-   Theme toggle and boot
-   ========================= */
-document.getElementById('themeToggle').addEventListener('click', ()=>{
-  currentTheme = currentTheme === 'dark' ? 'light' : 'dark';
-  document.body.classList.remove('dark','light');
-  document.body.classList.add(currentTheme);
-  document.getElementById('themeToggle').innerText = currentTheme === 'dark' ? 'Dark Mode' : 'Light Mode';
-  drawPiano();
-  enforceSvgTheme();
-});
+Theme toggle and boot
+========================= */
+document.getElementById('themeToggle').addEventListener('click', ()=>{ currentTheme = currentTheme === 'dark' ? 'light' : 'dark'; document.body.classList.remove('dark','light'); document.body.classList.add(currentTheme); document.getElementById('themeToggle').innerText = currentTheme === 'dark' ? 'Dark Mode' : 'Light Mode'; drawPiano(); enforceSvgTheme(); });
 
 window.addEventListener('load', async ()=>{
-  drawPiano();
-  window.addEventListener('resize', drawPiano);
-  try {
-    await initSoundEngine();
-  } catch (error) {
-    console.error('Sound engine initialization failed:', error);
-    setStatus('Sound engine failed - check console');
-  }
-  setStatus('Ready — load a MusicXML or MIDI file');
+drawPiano(); window.addEventListener('resize', drawPiano);
+try { await initSoundEngine(); } catch (error) { console.error('Sound engine initialization failed:', error); setStatus('Sound engine failed - check console'); }
+setStatus('Ready — load a MusicXML or MIDI file');
 });
 </script>
 </body>
