@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Musica — Unified Prototype (No Tone.js)</title>
-
+<title>Musica — Unified Prototype</title>
+<link rel="shortcut icon" href="favicon.png" type="image/x-icon" />
 <!-- Libraries -->
 <script src="https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.7.6/build/opensheetmusicdisplay.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/midiconvert@0.4.0/build/MidiConvert.js"></script>
@@ -730,9 +730,16 @@ function parseMusicXMLToEvents(xmlText) {
 }
 
 /* =========================
-   MIDI -> MusicXML converter (unchanged)
+   MIDI -> MusicXML converter (FIXED for Grand Staff)
    ========================= */
-function safeGetBPM(midiJson){ try{ if(midiJson.header && midiJson.header.bpm) return midiJson.header.bpm; if(midiJson.header && midiJson.header.tempos && midiJson.header.tempos.length) return midiJson.header.tempos[0].bpm; }catch(e){} return 120; }
+function safeGetBPM(midiJson){ 
+  try{ 
+    if(midiJson.header && midiJson.header.bpm) return midiJson.header.bpm; 
+    if(midiJson.header && midiJson.header.tempos && midiJson.header.tempos.length) 
+      return midiJson.header.tempos[0].bpm; 
+  }catch(e){} 
+  return 120; 
+}
 
 function buildMusicXMLFromMidi(midiJson) {
   const bpm = safeGetBPM(midiJson);
@@ -792,7 +799,9 @@ function buildMusicXMLFromMidi(midiJson) {
       xml += `        <divisions>${divisions}</divisions>\n`;
       xml += `        <key><fifths>0</fifths></key>\n`;
       xml += `        <time><beats>4</beats><beat-type>4</beat-type></time>\n`;
-      xml += `        <clef><sign>G</sign><line>2</line></clef>\n`;
+      // CRITICAL FIX: Add staves element to specify this is a Grand Staff
+      xml += `        <staves>2</staves>\n`;
+      xml += `        <clef number="1"><sign>G</sign><line>2</line></clef>\n`;
       xml += `        <clef number="2"><sign>F</sign><line>4</line></clef>\n`;
       xml += `      </attributes>\n`;
       
@@ -810,6 +819,7 @@ function buildMusicXMLFromMidi(midiJson) {
     const measureNotes = measures.get(measureNum) || [];
     const splitThreshold = parseInt(document.getElementById('splitThreshold').value) || 60;
 
+    // Group notes by time
     const timeGroups = new Map();
     measureNotes.forEach(note => {
       const timeKey = Math.round(note.time * 1000);
@@ -817,8 +827,12 @@ function buildMusicXMLFromMidi(midiJson) {
       timeGroups.get(timeKey).push(note);
     });
 
+    // Process each time group
     Array.from(timeGroups.keys()).sort((a, b) => a - b).forEach((timeKey, groupIndex) => {
       const notes = timeGroups.get(timeKey);
+      
+      // Sort notes by pitch to ensure consistent chord ordering
+      notes.sort((a, b) => a.midi - b.midi);
       
       notes.forEach((note, noteIndex) => {
         const p = pitchFromMidi(note.midi);
@@ -835,8 +849,29 @@ function buildMusicXMLFromMidi(midiJson) {
         xml += `          <octave>${p.octave}</octave>\n`;
         xml += `        </pitch>\n`;
         xml += `        <duration>${durationDivisions}</duration>\n`;
-        xml += `        <type>quarter</type>\n`;
+        
+        // Determine note type based on duration
+        const noteType = getNoteType(durationDivisions, divisions);
+        xml += `        <type>${noteType}</type>\n`;
+        
         xml += `        <staff>${staff}</staff>\n`;
+        
+        // Add velocity/dynamics if available
+        if (note.velocity) {
+          const velocity = note.velocity;
+          if (velocity < 0.4) {
+            xml += `        <dynamics><pp/></dynamics>\n`;
+          } else if (velocity < 0.6) {
+            xml += `        <dynamics><p/></dynamics>\n`;
+          } else if (velocity < 0.8) {
+            xml += `        <dynamics><mp/></dynamics>\n`;
+          } else if (velocity < 1.0) {
+            xml += `        <dynamics><f/></dynamics>\n`;
+          } else {
+            xml += `        <dynamics><ff/></dynamics>\n`;
+          }
+        }
+        
         xml += `      </note>\n`;
       });
     });
@@ -848,6 +883,21 @@ function buildMusicXMLFromMidi(midiJson) {
   xml += `</score-partwise>\n`;
   
   return xml;
+}
+
+// Helper function to determine note type based on duration
+function getNoteType(durationDivisions, divisions) {
+  const quarter = divisions;
+  const half = quarter * 2;
+  const whole = quarter * 4;
+  const eighth = quarter / 2;
+  const sixteenth = quarter / 4;
+  
+  if (durationDivisions >= whole) return "whole";
+  if (durationDivisions >= half) return "half";
+  if (durationDivisions >= quarter) return "quarter";
+  if (durationDivisions >= eighth) return "eighth";
+  return "16th";
 }
 
 /* =========================
@@ -1165,7 +1215,6 @@ document.getElementById('enableMidiOutBtn').addEventListener('click', async ()=>
    MIDI export (MusicXML -> .mid)
    Minimal single-track MIDI writer (unchanged)
    ========================= */
-// writeVarLen, numberToBytes, buildMidiFromEvents unchanged — omitted here for brevity (same as before)
 function writeVarLen(value){
   const buffer = [];
   let val = value & 0x0FFFFFFF;
@@ -1225,6 +1274,7 @@ function buildMidiFromEvents(events, bpm){
   const bytes = new Uint8Array([...header, ...trackChunk]);
   return bytes;
 }
+
 document.getElementById('exportMidiBtn').addEventListener('click', ()=>{
   if(!xmlTextLast || !xmlEvents || xmlEvents.length===0){ setStatus('Nothing to export'); return; }
   try{
