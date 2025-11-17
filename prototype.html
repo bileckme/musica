@@ -151,6 +151,8 @@ body.dark #grandStaff svg text { fill: #fff !important; }
 
     <button id="exportMidiBtn">Export MIDI</button>
 
+    <button id="playSongsBtn">Play Songs</button>
+
     <button id="themeToggle">Dark Mode</button>
     <div id="status">Ready</div>
 </div>
@@ -868,6 +870,11 @@ setStatus('Paused — next idx ' + playCursorIdx);
 document.getElementById('stopBtn').addEventListener('click', ()=>{
 clearInterval(schedulerInterval); schedulerInterval = null;
 clearScheduled(); playing = false; playCursorIdx = 0; activeHighlights.clear(); redrawPianoWithHighlights(); try{ if(RealPianoLocal) RealPianoLocal.stopNote(); }catch(e){} setStatus('Stopped');
+});
+
+/* Play Songs Main UI */
+document.getElementById('playSongsBtn').addEventListener('click', ()=>{
+  window.location.href = 'index.html'
 });
 
 /* =========================
