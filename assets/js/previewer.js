@@ -789,6 +789,13 @@ function playSongProgressionFromLyrics() {
   playLyricsTimer = setInterval(playNextChord, 2000); // adjust interval to match tempo
 }
 
+function openPracticeUI()
+{
+  window.parent.location.href = 'prototype.html';
+}
+
+document.getElementById('practiceBtn')?.addEventListener('click',openPracticeUI);
+
 document.getElementById('playSongBtn')?.addEventListener('click', playSongProgressionFromLyrics);
 
 document.getElementById('playSongBtn')?.addEventListener('click', () => {
