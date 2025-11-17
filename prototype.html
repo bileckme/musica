@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Musica — Unified Prototype (Fixed)</title>
+<title>Musica — Unified Prototype</title>
 <link rel="shortcut icon" href="favicon.png" type="image/x-icon" />
 <!-- Libraries -->
 <script src="https://cdn.jsdelivr.net/npm/opensheetmusicdisplay@1.7.6/build/opensheetmusicdisplay.min.js"></script>
@@ -23,7 +23,69 @@ label{color:#bbb;font-size:13px}
 #pianoCanvas{width:100%;height:100%;display:block;touch-action:none}
 #status{color:#9aa;font-size:13px;margin-left:auto}
 .small{font-size:13px;color:#9aa}
-.btn-compact{padding:6px 8px;font-size:13px} 
+.btn-compact{padding:6px 8px;font-size:13px}
+
+/* iPhone-style toggle switches */
+.toggle-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.toggle-label {
+  color: #bbb;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 44px;
+  height: 24px;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #333;
+  transition: .3s;
+  border-radius: 24px;
+  border: 1px solid #555;
+}
+
+.toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 2px;
+  background-color: white;
+  transition: .3s;
+  border-radius: 50%;
+}
+
+input:checked + .toggle-slider {
+  background-color: #007AFF;
+  border-color: #007AFF;
+}
+
+input:checked + .toggle-slider:before {
+  transform: translateX(19px);
+}
+
+/* Theme styles */
 body.light #grandStaff svg { background:#fff !important; }
 body.light #grandStaff svg * { fill: #000 !important; stroke: #000 !important; }
 body.light #grandStaff svg text { fill: #000 !important; }
@@ -39,8 +101,22 @@ body.dark #grandStaff svg text { fill: #fff !important; }
     <input id="anyFileInput" type="file" accept=".mid,.midi,.xml,.musicxml,.mxl" />
     <button id="loadAnyBtn">Load File</button>
 
-    <label class="small"><input id="reverbCheck" type="checkbox"/> Reverb</label>
-    <label class="small"><input id="sustainCheck" type="checkbox"/> Sustain</label>
+    <!-- iPhone-style toggle switches for Reverb and Sustain -->
+    <div class="toggle-container">
+        <span class="toggle-label">Reverb</span>
+        <label class="toggle-switch">
+            <input type="checkbox" id="reverbToggle">
+            <span class="toggle-slider"></span>
+        </label>
+    </div>
+
+    <div class="toggle-container">
+        <span class="toggle-label">Sustain</span>
+        <label class="toggle-switch">
+            <input type="checkbox" id="sustainToggle">
+            <span class="toggle-slider"></span>
+        </label>
+    </div>
 
     <label class="small">Quantize:
     <select id="quantizeSelect" class="btn-compact">
@@ -56,8 +132,22 @@ body.dark #grandStaff svg text { fill: #fff !important; }
     <button id="pauseBtn">Pause</button>
     <button id="stopBtn">Stop</button>
 
-    <button id="initMidiBtn">Init MIDI</button>
-    <button id="enableMidiOutBtn">Enable MIDI Out</button>
+    <!-- MIDI In/Out Toggle Switches -->
+    <div class="toggle-container">
+        <span class="toggle-label">MIDI In</span>
+        <label class="toggle-switch">
+            <input type="checkbox" id="midiInToggle">
+            <span class="toggle-slider"></span>
+        </label>
+    </div>
+
+    <div class="toggle-container">
+        <span class="toggle-label">MIDI Out</span>
+        <label class="toggle-switch">
+            <input type="checkbox" id="midiOutToggle">
+            <span class="toggle-slider"></span>
+        </label>
+    </div>
 
     <button id="exportMidiBtn">Export MIDI</button>
 
@@ -85,6 +175,7 @@ const statusEl = document.getElementById('status');
 const PIANO = { FIRST:21, LAST:108, keyMap:{} };
 let osmd = null;
 let midiOut = null;
+let midiIn = null; // MIDI input device
 let currentTheme = 'dark';
 let xmlTextLast = null;
 let xmlEvents = [];   // {midi, time, duration, velocity, id, measure, staff, voice}
@@ -278,10 +369,15 @@ Sound engine: use RealPianoLocal (samples)
 async function initSoundEngine(){
 try {
     if(window.RealPianoLocal && typeof RealPianoLocal.init === 'function'){
-    await RealPianoLocal.init({ basePath: './assets/samples', ext: '.mp3', useReverb: document.getElementById('reverbCheck').checked, onprogress: (loaded,total)=> setStatus(`Loading samples ${loaded}/${total}`) });
+    await RealPianoLocal.init({ 
+        basePath: './assets/samples', 
+        ext: '.mp3', 
+        useReverb: document.getElementById('reverbToggle').checked, 
+        onprogress: (loaded,total)=> setStatus(`Loading samples ${loaded}/${total}`) 
+    });
     soundEngine = RealPianoLocal.isReady() ? 'real' : 'none';
     setStatus(soundEngine === 'real' ? 'Sound engine: RealPianoLocal ✅' : 'No sound engine available');
-    RealPianoLocal.setSustainEnabled(document.getElementById('sustainCheck').checked);
+    RealPianoLocal.setSustainEnabled(document.getElementById('sustainToggle').checked);
     return;
     }
 } catch(e){ console.warn('Sound init err', e); }
@@ -310,11 +406,50 @@ function stopNoteUnified(noteName){
 try{ if(RealPianoLocal) RealPianoLocal.stopNote(noteName); }catch(e){ console.warn('Stop note error', e); }
 }
 
-/* Enhanced sustain control */
-document.getElementById('sustainCheck').addEventListener('change', (e)=>{
-const val = e.target.checked;
-try{ if(RealPianoLocal && typeof RealPianoLocal.setSustainEnabled === 'function') { RealPianoLocal.setSustainEnabled(val); setStatus(`Sustain ${val ? 'enabled' : 'disabled'}`); } else { setStatus('Sustain not available'); } }catch(e){ console.warn('Sustain control error:', e); }
-});
+/* =========================
+Enhanced MIDI device filtering and selection
+========================= */
+function filterMIDIDevices(devices, type = 'input') {
+    // Filter out virtual/through ports and prioritize real devices
+    const filtered = devices.filter(device => {
+        const name = (device.name || '').toLowerCase();
+        
+        // Skip virtual/through ports
+        const skipPatterns = [
+            'through', 'loopback', 'virtual midi', 'midi through',
+            'microsoft gs', 'mapper'
+        ];
+        
+        if (skipPatterns.some(pattern => name.includes(pattern))) {
+            return false;
+        }
+        
+        // For inputs, prioritize devices that look like real controllers
+        if (type === 'input') {
+            // Keep devices that look like real controllers
+            const realControllerPatterns = [
+                'keyboard', 'piano', 'controller', 'key', 'midi in',
+                'arturia', 'native instruments', 'akai', 'korg', 'roland',
+                'yamaha', 'novation', 'alesis', 'm-audio', 'behringer'
+            ];
+            
+            return realControllerPatterns.some(pattern => name.includes(pattern));
+        }
+        
+        // For outputs, be more permissive but still filter through ports
+        return true;
+    });
+    
+    // If we filtered out everything, return the original list (except through ports)
+    if (filtered.length === 0) {
+        return devices.filter(device => {
+            const name = (device.name || '').toLowerCase();
+            return !name.includes('through') && !name.includes('loopback');
+        });
+    }
+    
+    return filtered;
+}
 
 /* =========================
 Parse MusicXML -> events (seconds)
@@ -780,10 +915,155 @@ if(name.endsWith('.mid') || name.endsWith('.midi')){
 });
 
 /* =========================
-MIDI access / outputs
+MIDI In/Out Toggle Functionality with Enhanced Device Selection
 ========================= */
-document.getElementById('initMidiBtn').addEventListener('click', async ()=>{ try{ await navigator.requestMIDIAccess(); setStatus('MIDI access OK'); }catch(e){ console.warn(e); setStatus('MIDI init failed'); } });
-document.getElementById('enableMidiOutBtn').addEventListener('click', async ()=>{ try{ const access = await navigator.requestMIDIAccess({ sysex:true }); const outs = Array.from(access.outputs.values()); if(outs.length===0){ setStatus('No MIDI outputs'); return; } const real = outs.filter(o=>{ const n=(o.name||'').toLowerCase(); return !(n.includes('through')||n.includes('loopback')||n.includes('virtual')||n.includes('midi-through')); }); midiOut = real.length ? real[0] : outs[0]; setStatus('MIDI Out: ' + midiOut.name); }catch(e){ console.warn(e); setStatus('MIDI out error'); } });
+const midiInToggle = document.getElementById('midiInToggle');
+const midiOutToggle = document.getElementById('midiOutToggle');
+const reverbToggle = document.getElementById('reverbToggle');
+const sustainToggle = document.getElementById('sustainToggle');
+
+// MIDI In handler function
+function handleMIDIMessage(event) {
+    const [command, note, velocity] = event.data;
+    
+    // Note on (0x90) and velocity > 0
+    if (command === 0x90 && velocity > 0) {
+        highlightKey(note);
+        playNoteUnified(midiToNoteName(note), velocity / 127, 1.5);
+        if (midiOut) sendMidiNote(midiOut, 0x90, note, velocity);
+    } 
+    // Note off (0x80) or note on with velocity 0
+    else if (command === 0x80 || (command === 0x90 && velocity === 0)) {
+        removeHighlight(note);
+        stopNoteUnified(midiToNoteName(note));
+        if (midiOut) sendMidiNote(midiOut, 0x80, note, 0);
+    }
+}
+
+// Helper function to send MIDI notes
+function sendMidiNote(output, status, note, velocity) {
+    try {
+        output.send([status, note, velocity]);
+    } catch (e) {
+        console.warn('MIDI send error:', e);
+    }
+}
+
+// MIDI In toggle event with enhanced device filtering
+midiInToggle.addEventListener('change', async (e) => {
+    if (e.target.checked) {
+        try {
+            const access = await navigator.requestMIDIAccess({ sysex: true });
+            const inputs = Array.from(access.inputs.values());
+            
+            if (inputs.length === 0) {
+                setStatus('No MIDI inputs found');
+                midiInToggle.checked = false;
+                return;
+            }
+            
+            // Enhanced device filtering - prioritize real devices over through ports
+            const filteredInputs = filterMIDIDevices(inputs, 'input');
+            
+            if (filteredInputs.length === 0) {
+                setStatus('No suitable MIDI inputs found');
+                midiInToggle.checked = false;
+                return;
+            }
+            
+            // Use the first filtered device
+            midiIn = filteredInputs[0];
+            midiIn.onmidimessage = handleMIDIMessage;
+            setStatus('MIDI In: ' + midiIn.name);
+            
+            // Log available devices for debugging
+            console.log('Available MIDI Inputs:', inputs.map(i => i.name));
+            console.log('Filtered MIDI Inputs:', filteredInputs.map(i => i.name));
+            console.log('Selected MIDI Input:', midiIn.name);
+            
+        } catch (err) {
+            console.error('MIDI In failed:', err);
+            setStatus('MIDI In failed');
+            midiInToggle.checked = false;
+        }
+    } else {
+        // Disable MIDI In
+        if (midiIn) {
+            midiIn.onmidimessage = null;
+            midiIn = null;
+        }
+        setStatus('MIDI In disabled');
+    }
+});
+
+// MIDI Out toggle event with enhanced device filtering
+midiOutToggle.addEventListener('change', async (e) => {
+    if (e.target.checked) {
+        try {
+            const access = await navigator.requestMIDIAccess({ sysex: true });
+            const outputs = Array.from(access.outputs.values());
+            
+            if (outputs.length === 0) {
+                setStatus('No MIDI outputs');
+                midiOutToggle.checked = false;
+                return;
+            }
+            
+            // Enhanced device filtering for outputs
+            const filteredOutputs = filterMIDIDevices(outputs, 'output');
+            
+            if (filteredOutputs.length === 0) {
+                setStatus('No suitable MIDI outputs');
+                midiOutToggle.checked = false;
+                return;
+            }
+            
+            midiOut = filteredOutputs[0];
+            setStatus('MIDI Out: ' + midiOut.name);
+            
+        } catch (err) {
+            console.error('MIDI Out failed:', err);
+            setStatus('MIDI Out failed');
+            midiOutToggle.checked = false;
+        }
+    } else {
+        // Disable MIDI Out
+        midiOut = null;
+        setStatus('MIDI Out disabled');
+    }
+});
+
+// Reverb toggle event
+reverbToggle.addEventListener('change', (e) => {
+    const val = e.target.checked;
+    try { 
+        if (RealPianoLocal && typeof RealPianoLocal.setReverbEnabled === 'function') {
+            RealPianoLocal.setReverbEnabled(val);
+            setStatus(`Reverb ${val ? 'enabled' : 'disabled'}`);
+        } else {
+            setStatus('Reverb control not available');
+        }
+    } catch (e) { 
+        console.warn('Reverb control error:', e);
+        setStatus('Reverb control failed');
+    }
+});
+
+// Sustain toggle event
+sustainToggle.addEventListener('change', (e) => {
+    const val = e.target.checked;
+    try { 
+        if (RealPianoLocal && typeof RealPianoLocal.setSustainEnabled === 'function') {
+            RealPianoLocal.setSustainEnabled(val);
+            setStatus(`Sustain ${val ? 'enabled' : 'disabled'}`);
+        } else {
+            setStatus('Sustain control not available');
+        }
+    } catch (e) { 
+        console.warn('Sustain control error:', e);
+        setStatus('Sustain control failed');
+    }
+});
 
 /* =========================
 MIDI export (MusicXML -> .mid)
