@@ -6,3 +6,4 @@ dist
 releases
 .backup
 .github
+package-lock.json
