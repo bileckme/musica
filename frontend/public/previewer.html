@@ -1,0 +1,215 @@
+<!-- previewer.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Previewer</title>
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+<style>
+@font-face {
+    font-family: 'Bravura';
+    src: url('assets/fonts/Bravura/woff/Bravura.woff') format('woff'); 
+    font-weight: normal;
+    font-style: normal;
+}
+@import url('https://fonts.googleapis.com/css2?family=League+Spartan:wght@100..900&display=swap');
+* { font-family: "League Spartan", Arial, sans-serif; margin: 0; padding: 0; box-sizing: border-box; }
+html, body { font-family: "League Spartan", Arial, sans-serif !important; background: #000; color: #000; padding: 0; margin: 0; overflow-x: hidden; }
+.container { display: flex; flex-wrap: nowrap; height: 100vh; }
+.left { flex: 0 0 50%; max-width: 50%; border-right: 1px solid #ccc; height: 98%; border-radius: 10px; }
+iframe { width: 101%; height: 100%; border: none; border-radius: 10px; }
+.right { flex: 0 0 50%; max-width: 50%; display: flex; flex-direction: column; padding: 16px; box-sizing: border-box; overflow: hidden; }
+
+.lyrics { position: relative; flex: 0 0 auto; background: #fff; border-radius: 6px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); padding:12px; line-height:1.6; margin-bottom:12px; height: 15.25vh; overflow-y: scroll; }
+.title { font-weight:bold; margin-bottom:6px; text-align:left; }
+
+.chord-previews { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:12px; }
+.chord-piano { flex: 0 0 120px; background: #fff; border-radius:6px; box-shadow:0 1px 4px rgba(0,0,0,0.1); padding:8px; text-align:center; cursor:pointer; }
+
+canvas { width: 120px; height: 40px; display:block; margin:0 auto 4px; border-top:3px solid black; background:#fff; }
+#trebleStaffCanvas { font-family: 'Bravura'; width: 47.55vw; height: 80px; border-radius: 8px; }
+#bassStaffCanvas { font-family: 'Bravura'; width: 47.55vw; height: 80px; border-radius: 8px; }
+#kbd { width: 120px !important; height: 40px !important; }
+.bottom-row { display:flex; gap:12px; flex:0 0 auto; margin-top:12px; position: relative; }
+.music-info { display:flex; gap:12px; flex:0 0 auto; margin-top:12px; position: relative; top: -215px; }
+.piano { flex:0.4 !important; }
+.piano, .chord-chart { flex:1; background:#fff; border-radius:6px; box-shadow:0 1px 4px rgba(0,0,0,0.1); padding:12px; }
+
+.controls { display:flex; gap:6px; justify-content:center; margin-top:8px; flex-wrap:wrap; }
+select, button { padding:4px 8px; border-radius:6px; border:1px solid #111; background:#fafafa; cursor:pointer; }
+button:hover { background:#eee; }
+#chordChart table { width:100%; border-collapse:collapse; }
+#chordChart td { border:1px solid #111; padding:2px; text-align:center; }
+
+.button { background-color: #000; color: white; }
+.button:hover { background-color: #333; color: white; }
+#playSongBtn { position: relative; bottom: 0px; z-index: 3; }
+.chord { font-weight:bold; color:#d00; }
+#fullscreenBtn {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  padding: 8px 14px;
+  font-size: 14px;
+  border: none;
+  border-radius: 6px;
+  background: #111;
+  color: #fff;
+  cursor: pointer;
+  z-index: 1000;
+  display: none;
+  transition: background 0.3s;
+}
+
+#fullscreenBtn:hover {
+  background: #333;
+}
+
+.visualizer { font-family: "League Spartan"; 
+  color: white; 
+  position: absolute;
+  top: 0;
+  left: 50%;
+  text-align: center;
+  width: 100%;
+  height: 80px;
+  font-size: 2.5rem;
+  text-align: center;
+  line-height: 2;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0);
+  padding: 8px 20px;
+  border-radius: 10px;
+  display: none;
+  transition: opacity 0.3s ease;
+  z-index: 1000; 
+}
+
+.staffs {
+  width: 100%;
+  height: 310px;
+  margin-bottom: 12px;
+  overflow: hidden;
+  border-radius: 8px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  position: relative;
+  top: 0px;
+  left: 0%;
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="left">
+    <iframe src="https://musescore.com/user/2975/scores/3123436/embed" allow="autoplay; fullscreen"></iframe>
+  </div>
+  <div class="right">
+    <div class="staffs">
+      <div id="grand-staff-container" class="grand-staff">
+        <iframe id="grandStaffFrame" src="notation.html" allow="autoplay; fullscreen" style="width: 100vw; height: 330px; overflow: hidden; z-index: 1001 !important"></iframe>
+      </div>
+    </div>
+
+    <!-- Music Info -->
+    <div class="music-info">
+      <div id="musicInfo" class="visualizer">
+      </div>
+    </div>
+    
+    <!-- Song Selector -->
+    <select id="songSelect" style="margin-bottom:12px;"></select>
+
+    <!-- Lyrics -->
+    <div class="lyrics">
+      <div></div>
+    </div>
+
+    <!-- Chord Previews -->
+    <div class="chord-previews" id="chordPreviews"></div>
+
+    <!-- Bottom Row -->
+    <div class="bottom-row">
+      <div class="piano">
+        <!-- Preview Generator -->
+        <div id="chordLabel" class="title" style="text-align:center;">Cmaj7</div>
+        <canvas id="kbd" width="150" height="40"></canvas>
+        <div class="controls">
+          <select id="root" style="background:#000;color:#fff;"></select>
+          <select id="quality" style="background:#000;color:#fff;">
+            <option value="maj">maj</option>
+            <option value="min">m</option>
+            <option value="dom7">7</option>
+            <option value="maj7">maj7</option>
+            <option value="m7">m7</option>
+            <option value="dim">dim</option>
+            <option value="sus2">sus2</option>
+            <option value="sus4">sus4</option>
+            <option value="add9">add9</option>
+            <option value="add11">add11</option>
+            <option value="add13">add13</option>
+            <option value="9th">9th</option>
+            <option value="11th">11th</option>
+            <option value="13th">13th</option>
+          </select>
+          <button id="showBtn" style="background:#000;color:#fff;">
+            Preview &nbsp; <i class="fa fa-play" style="color:white;"></i>
+          </button><br /><br />
+          <br style="clear: both;" />
+          <select id="transposeSelect" style="background:#000;color:#fff;">
+            <option value="0">Original Key</option>
+            <option value="1">+1 semitone</option>
+            <option value="2">+2 semitones</option>
+            <option value="3">+3 semitones</option>
+            <option value="4">+4 semitones</option>
+            <option value="5">+5 semitones</option>
+            <option value="6">+6 semitones</option>
+            <option value="-1">-1 semitone</option>
+            <option value="-2">-2 semitones</option>
+            <option value="-3">-3 semitones</option>
+            <option value="-4">-4 semitones</option>
+            <option value="-5">-5 semitones</option>
+            <option value="-6">-6 semitones</option>
+          </select>
+          
+          <button id="transposeBtn" class="button">
+            Transpose <i class="fa fa-exchange" style="color:white;"></i>
+          </button>
+          
+        </div>
+      </div>
+
+      <div class="chord-chart">
+        <div class="title">Chord Chart</div>
+        <div id="chordChart"></div><br />
+        <button id="playSongBtn" class="button">Play Song 🎼 </button> 
+        <button id="practiceBtn" class="button">Practice Piano 🎹 </button> 
+        <button id="refreshBtn" class="button">
+          Reload <i class="fas fa-sync-alt"></i>
+        </button>
+        <button id="fullscreenToggle" class="button">
+          Fullscreen <i class="fas fa-expand"></i>
+        </button>
+      </div>
+    </div>
+    
+  </div>
+</div>
+<!-- Vex Flow -->
+<script src="https://cdn.jsdelivr.net/npm/vexflow@4.2.2/build/cjs/vexflow.js"></script>
+
+<!-- Load WebAudioFont -->
+<script src="assets/js/webaudiofont/WebAudioFontPlayer.js"></script>
+<script src="assets/js/webaudiofont/0090_JCLive_sf2_file.js"></script>
+
+<!-- Application Libraries -->
+<script src="assets/js/music-theory.js" type="text/javascript"></script>
+<script src="assets/js/transpose.js" type="module"></script>
+<script src="assets/js/transposer.js" type="text/javascript"></script>
+<script src="assets/js/previewer.js" type="text/javascript"></script>
+<script src="assets/js/fullscreen.js?i=1" type="text/javascript"></script>
+</body>
+</html>
+
