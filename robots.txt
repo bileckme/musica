@@ -1,7 +1,0 @@
-################################################################################
-##  Looking for an exciting career opportunity? Contact us: seo@entilda.com   ##
-################################################################################
-#sitemap: http://www.bileckme.gq/sitemap.xml
-user-agent: *
-disallow: *
-#allow: /
